@@ -5,9 +5,11 @@
 * **Proxmox VE 7 oder neuer** (für die LXC-Installation) – alternativ ein
   beliebiges Debian 12/13- oder Ubuntu-22.04/24.04-System
 * Ein **E-Mail-Postfach mit IMAP-Zugang**, das überwacht werden soll
-* Ein **Versandweg für Faxe**: FRITZ!Box, HylaFAX, ein Fax-per-E-Mail-Dienst
-  oder ein eigenes Kommando (siehe [FAX-BACKENDS.md](FAX-BACKENDS.md))
-* Etwa **4 GiB Festplatte** (8 GiB mit LibreOffice), 1 GiB RAM, 2 CPU-Kerne
+* Ein **Versandweg für Faxe**: SIP-Anbindung an FRITZ!Box oder Telefonanlage,
+  HylaFAX, ein Fax-per-E-Mail-Dienst oder ein eigenes Kommando
+  (siehe [FAX-BACKENDS.md](FAX-BACKENDS.md))
+* Etwa **4 GiB Festplatte**, 1 GiB RAM, 2 CPU-Kerne – mit SIP-Versand
+  (Asterisk) 6 GiB, mit LibreOffice 8 GiB
 
 ---
 
@@ -152,7 +154,20 @@ ob sein Fax versendet wurde – und der Administrator eine Meldung bei Fehlern.
 ### 5. Versandweg einrichten
 
 **Fax → Versandweg.** Siehe [FAX-BACKENDS.md](FAX-BACKENDS.md).
-Danach „Backend prüfen" und ein **Testfax** an eine eigene Nummer senden.
+
+Für **FRITZ!Box oder Telefonanlage** ist SIP der empfohlene Weg. Falls noch
+nicht bei der Installation mitgewählt, im Container nachholen:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Internerd/mail2fax/main/install/sip-setup.sh)"
+```
+
+Danach in der FRITZ!Box ein IP-Telefon anlegen (*Telefonie → Telefoniegeräte →
+Neues Gerät → Telefon → LAN/WLAN*), dessen Zugangsdaten in mail2fax eintragen
+und „Speichern und Asterisk-Konfiguration anwenden" drücken.
+
+Danach „Backend prüfen" – es muss `Registered` melden – und ein **Testfax** an
+eine eigene Nummer senden.
 
 ### 6. Probelauf
 
@@ -178,6 +193,7 @@ Grund im Auftragsdetail und im Protokoll.
 | `Der Container hat keine Netzwerkverbindung` | Netzwerkbrücke prüfen (`vmbr0`), bei statischer IP Gateway und Netzmaske kontrollieren |
 | `Keine debian-12-standard-Vorlage verfuegbar` | `pveam update` auf dem Host ausführen |
 | Installation im Container bricht ab | `pct enter <CTID>`, dann `journalctl -xe`; meist fehlender Internetzugang oder ein DNS-Problem |
+| `Registrierung an …: Rejected` | Zugangsdaten des IP-Telefons stimmen nicht – in der FRITZ!Box neu setzen |
 | Weboberfläche nicht erreichbar | `systemctl status mail2fax` im Container; Firewallregeln prüfen; IP mit `hostname -I` bestätigen |
 | `Zugriff nur aus dem lokalen Netz erlaubt` | Ihr Netz unter *Sicherheit → Erlaubte Netze* ergänzen (CIDR, z. B. `192.168.178.0/24`) |
 

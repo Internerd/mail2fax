@@ -160,10 +160,71 @@ class CommandConfig(BaseModel):
     env: dict[str, str] = Field(default_factory=dict)
 
 
+class SipConfig(BaseModel):
+    """Faxversand ueber eine SIP-Registrierung an FRITZ!Box oder Telefonanlage.
+
+    mail2fax meldet sich als IP-Telefon an der Anlage an und uebertraegt das
+    Fax selbst - entweder als T.38 oder als Software-Faxmodem ueber G.711.
+    Die Medienverarbeitung uebernimmt ein lokaler Asterisk (res_fax_spandsp),
+    den mail2fax ueber die Asterisk Manager Interface (AMI) steuert.
+
+    Die Asterisk-Konfiguration erzeugt mail2fax selbst aus diesen Werten
+    (``mail2fax sip-apply`` bzw. die Schaltflaeche in der Weboberflaeche).
+    """
+
+    # -- Anlage (SIP-Registrierung) ----------------------------------------
+    #: Adresse der FRITZ!Box bzw. der Telefonanlage.
+    server: str = "fritz.box"
+    port: int = Field(default=5060, ge=1, le=65535)
+    #: Interne Rufnummer bzw. SIP-Benutzername des angelegten IP-Telefons.
+    username: str = ""
+    password: str = ""
+    #: Eigene Faxnummer als Absenderkennung (TSI), z. B. "+49301234567".
+    sender_number: str = ""
+    #: Text in der Faxkopfzeile.
+    station_name: str = "mail2fax"
+    #: Amtsholung, die der Rufnummer vorangestellt wird (z. B. "0" an einer TK-Anlage).
+    dial_prefix: str = ""
+    #: Rufnummern in nationaler Form waehlen (0301234567 statt +49301234567).
+    dial_national: bool = True
+    #: Transportprotokoll der SIP-Registrierung.
+    transport: Literal["udp", "tcp"] = "udp"
+
+    # -- Faxparameter -------------------------------------------------------
+    #: T.38 anbieten. Viele FRITZ!Box-Modelle faxen zuverlaessiger ohne.
+    t38: bool = False
+    #: Fehlerkorrektur (ECM). Ueber eine FRITZ!Box oft besser abgeschaltet.
+    ecm: bool = False
+    minrate: int = Field(default=2400, ge=2400, le=14400)
+    maxrate: int = Field(default=14400, ge=2400, le=14400)
+    #: Sekunden, die auf den Abschluss der Uebertragung gewartet wird.
+    timeout: int = Field(default=900, ge=60, le=3600)
+    #: Sekunden, die auf das Abheben der Gegenstelle gewartet wird.
+    dial_timeout: int = Field(default=60, ge=10, le=300)
+
+    # -- Asterisk-Anbindung -------------------------------------------------
+    ami_host: str = "127.0.0.1"
+    ami_port: int = Field(default=5038, ge=1, le=65535)
+    ami_user: str = "mail2fax"
+    #: Wird beim ersten "sip-apply" automatisch erzeugt.
+    ami_password: str = ""
+    #: Name des erzeugten PJSIP-Endpunkts (nur aendern, wenn es kollidiert).
+    endpoint_name: str = "mail2fax-tk"
+    #: Verzeichnis, in das die erzeugte Asterisk-Konfiguration geschrieben wird.
+    config_dir: str = "/etc/asterisk/mail2fax"
+
+    @field_validator("sender_number", mode="before")
+    @classmethod
+    def _strip_sender(cls, value: Any) -> Any:
+        return str(value or "").strip()
+
+
 class FaxConfig(BaseModel):
     """Auswahl und Parameter des Faxversands."""
 
-    backend: Literal["fritzbox", "hylafax", "mailgateway", "command", "dummy"] = "dummy"
+    backend: Literal[
+        "sip", "fritzbox", "hylafax", "mailgateway", "command", "dummy"
+    ] = "dummy"
     #: Anzahl der Zustellversuche insgesamt (inkl. Erstversuch).
     max_attempts: int = Field(default=3, ge=1, le=10)
     #: Wartezeit zwischen den Versuchen in Sekunden (wird verdoppelt).
@@ -171,6 +232,7 @@ class FaxConfig(BaseModel):
     #: Testbetrieb: Es wird nichts gesendet, der Auftrag gilt als erfolgreich.
     dry_run: bool = False
 
+    sip: SipConfig = Field(default_factory=SipConfig)
     fritzbox: FritzboxConfig = Field(default_factory=FritzboxConfig)
     hylafax: HylafaxConfig = Field(default_factory=HylafaxConfig)
     mailgateway: MailGatewayConfig = Field(default_factory=MailGatewayConfig)

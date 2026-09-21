@@ -91,7 +91,44 @@ beschränken Sie `allowed_networks` entsprechend.
   deshalb standardmäßig abgeschaltet. Aktivieren Sie sie nur, wenn Sie sie
   wirklich brauchen.
 
-## 5. Dienstabsicherung
+## 5. SIP-Versand (Asterisk)
+
+Der SIP-Versand bringt mit Asterisk einen zusätzlichen Netzdienst in den
+Container. Was mail2fax dafür vorsieht:
+
+* **AMI nur lokal.** Die Steuerschnittstelle von Asterisk lauscht auf
+  `127.0.0.1`; der erzeugte AMI-Benutzer erlaubt ausdrücklich nur
+  `127.0.0.1` und verweigert alles andere. Das Passwort wird zufällig
+  erzeugt und nur in der Konfiguration abgelegt.
+* **Eng gefasste Rechte.** Der AMI-Benutzer darf Anrufe auslösen, den
+  Zustand abfragen und neu laden – mehr nicht.
+* **Keine eingehenden Anrufe.** Der erzeugte Dialplan weist Anrufe auf dem
+  SIP-Konto ab. mail2fax nimmt keine Faxe entgegen.
+* **Asterisk liest nur.** Die Faxdateien liegen in einem Verzeichnis, das
+  mail2fax gehört und dessen Gruppe `asterisk` ist (`2750`). Asterisk darf
+  die Dateien lesen, aber nicht verändern; für alle anderen Benutzer sind
+  sie gesperrt.
+* **Konfiguration getrennt.** mail2fax schreibt ausschließlich nach
+  `/etc/asterisk/mail2fax/`. Die mitgelieferten Dateien von Asterisk werden
+  nur um je eine `#include`-Zeile ergänzt, Sicherungskopien liegen als
+  `*.vor-mail2fax` daneben.
+* **Werte werden bereinigt.** Zugangsdaten und Namen werden vor dem
+  Schreiben von Steuerzeichen und Kommentarzeichen befreit, damit sich über
+  ein Eingabefeld keine zusätzliche Konfigurationszeile einschleusen lässt.
+
+Was Sie zusätzlich beachten sollten:
+
+* **Port 5060 gehört nicht ins Internet.** Asterisk bindet den SIP-Transport
+  an alle Adressen, damit die Antwort der Anlage ankommt. Richten Sie dafür
+  keine Portweiterleitung ein und beschränken Sie den Container in der
+  Proxmox-Firewall auf Ihr LAN.
+* **Das veraltete `chan_sip` wird abgeschaltet** (`install/sip-setup.sh`).
+  Es belegt sonst Port 5060 und gilt als überholt.
+* **Faxübertragung ist unverschlüsselt.** Weder G.711 noch T.38 schützen den
+  Inhalt. Für vertrauliche Unterlagen ist Fax kein geeigneter Weg.
+* Halten Sie Asterisk aktuell (`unattended-upgrades`).
+
+## 6. Dienstabsicherung
 
 Die mitgelieferte systemd-Unit schränkt den Dienst ein:
 
@@ -110,7 +147,7 @@ Prüfen lässt sich das mit:
 systemd-analyze security mail2fax
 ```
 
-## 6. Empfohlene Ergänzungen
+## 7. Empfohlene Ergänzungen
 
 * Container-Firewall in Proxmox aktivieren und eingehend nur Port 8080 aus
   Ihrem Verwaltungsnetz zulassen.

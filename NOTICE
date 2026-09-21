@@ -26,6 +26,12 @@ Lizenztexte liegen nach der Installation im jeweiligen Paketverzeichnis unter
   Pillow             MIT-CMU         https://github.com/python-pillow/Pillow
   pypdf              BSD-3-Clause    https://github.com/py-pdf/pypdf
 
+Optional, nur beim Faxversand ueber SIP (als Systempakete installiert,
+nicht Bestandteil dieses Projekts):
+  Asterisk           GPL-2.0         https://www.asterisk.org/
+  spandsp            LGPL-2.1        https://github.com/freeswitch/spandsp
+  Ghostscript        AGPL-3.0        https://www.ghostscript.com/
+
 Optional, nur bei aktivierter Office-Wandlung:
   LibreOffice        MPL-2.0         https://www.libreoffice.org/
 
@@ -34,6 +40,7 @@ Marken
 FRITZ!Box und FRITZ!OS sind Marken der AVM GmbH.
 Proxmox und Proxmox VE sind Marken der Proxmox Server Solutions GmbH.
 HylaFAX ist eine Marke von iFAX Solutions, Inc.
+Asterisk ist eine Marke von Sangoma Technologies Corporation.
 
 Dieses Projekt steht in keiner Verbindung zu diesen Unternehmen und wird von
 ihnen weder unterstützt noch geprüft. Die Nennung erfolgt ausschließlich

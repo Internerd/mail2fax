@@ -31,6 +31,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
+      - name: Ghostscript installieren
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ghostscript
+
       - name: Abhaengigkeiten installieren
         run: |
           python -m pip install --upgrade pip
@@ -66,13 +71,14 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck
-          shellcheck mail2fax.sh install/install.sh install/update.sh
+          shellcheck mail2fax.sh install/install.sh install/update.sh install/sip-setup.sh
 
       - name: Syntaxpruefung
         run: |
           bash -n mail2fax.sh
           bash -n install/install.sh
           bash -n install/update.sh
+          bash -n install/sip-setup.sh
 
   package:
     name: Paket bauen

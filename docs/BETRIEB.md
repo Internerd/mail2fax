@@ -27,6 +27,8 @@ Alle Befehle liegen unter `/opt/mail2fax/venv/bin/mail2fax`.
 | `mail2fax show-config` | Konfiguration anzeigen (Passwörter maskiert) |
 | `mail2fax init-config` | Standardkonfiguration anlegen |
 | `mail2fax run` | nur den Hintergrunddienst starten (ohne Weboberfläche) |
+| `mail2fax sip-apply` | Asterisk-Konfiguration schreiben und neu laden |
+| `mail2fax sip-status` | SIP-Registrierung, Endpunkt und Kanäle anzeigen |
 
 Praktisch als Abkürzung:
 
@@ -43,6 +45,7 @@ echo 'alias mail2fax=/opt/mail2fax/venv/bin/mail2fax' >> /root/.bashrc
 | `/var/lib/mail2fax/spool/` | Faxdateien während der Verarbeitung | `0750` |
 | `/opt/mail2fax/venv/` | Python-Umgebung | |
 | `/opt/mail2fax/doc/` | mitgelieferte Dokumentation | |
+| `/etc/asterisk/mail2fax/` | erzeugte Asterisk-Konfiguration (nur bei SIP) | `2750 mail2fax:asterisk` |
 
 ## Aktualisieren
 
@@ -199,6 +202,20 @@ systemctl stop mail2fax
 find /var/lib/mail2fax/spool -mindepth 1 -mtime +7 -delete
 systemctl start mail2fax
 ```
+
+### SIP-Versand funktioniert nicht
+
+```bash
+mail2fax sip-status
+systemctl status asterisk
+journalctl -u asterisk -n 50
+```
+
+Häufigste Ursachen: die Registrierung steht nicht (`Rejected` = falsche
+Zugangsdaten, `Unregistered` = Anlage nicht erreichbar) oder
+`mail2fax sip-apply` wurde nach einer Änderung nicht ausgeführt. Die
+vollständige Fehlertabelle steht in
+[FAX-BACKENDS.md](FAX-BACKENDS.md#7-fehlersuche).
 
 ## Überwachung
 

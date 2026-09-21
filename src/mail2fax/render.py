@@ -263,3 +263,80 @@ def merge_pdfs(sources: list[Path], target: Path) -> Path:
     except Exception as error:
         raise RenderError(f"Dokumente konnten nicht zusammengefuehrt werden: {error}") from error
     return target
+
+
+#: Fax-Aufloesungen: (Pixel je Zeile, horizontale dpi, vertikale dpi).
+FAX_RESOLUTIONS = {
+    "standard": (1728, 204, 98),
+    "fine": (1728, 204, 196),
+    "superfine": (1728, 204, 391),
+}
+
+
+def pdf_to_tiff(
+    source: Path,
+    target: Path,
+    *,
+    resolution: str = "fine",
+    timeout: int = 300,
+) -> Document:
+    """Wandelt ein PDF in ein Fax-TIFF (CCITT Gruppe 4, 1 Bit).
+
+    Diese Form erwartet spandsp bzw. Asterisk fuer den Versand ueber SIP.
+    Gewandelt wird mit Ghostscript, das in fast jeder Distribution vorliegt.
+    """
+    ghostscript = shutil.which("gs")
+    if not ghostscript:
+        raise RenderError(
+            "Ghostscript wird fuer den SIP-Versand benoetigt, ist aber nicht "
+            "installiert (apt install ghostscript)"
+        )
+    if resolution not in FAX_RESOLUTIONS:
+        raise RenderError(f"Unbekannte Faxaufloesung: {resolution}")
+
+    width, dpi_x, dpi_y = FAX_RESOLUTIONS[resolution]
+    # Seitenhoehe in Pixeln fuer A4 (297 mm) bei der vertikalen Aufloesung.
+    height = round(297 / 25.4 * dpi_y)
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    argv = [
+        ghostscript,
+        "-q",
+        "-dNOPAUSE",
+        "-dBATCH",
+        "-dSAFER",
+        "-sDEVICE=tiffg4",
+        f"-r{dpi_x}x{dpi_y}",
+        f"-g{width}x{height}",
+        "-dPDFFitPage",
+        "-dFIXEDMEDIA",
+        f"-sOutputFile={target}",
+        str(source),
+    ]
+    try:
+        completed = subprocess.run(  # noqa: S603 - feste Argumentliste, keine Shell
+            argv, check=False, capture_output=True, timeout=timeout
+        )
+    except subprocess.TimeoutExpired as error:
+        raise RenderError(
+            f"Wandlung von {source.name} nach TIFF hat zu lange gedauert"
+        ) from error
+    except OSError as error:
+        raise RenderError(f"Ghostscript konnte nicht gestartet werden: {error}") from error
+
+    if completed.returncode != 0 or not target.exists():
+        detail = (completed.stderr or b"").decode("utf-8", "replace").strip()
+        raise RenderError(f"Wandlung nach TIFF fehlgeschlagen: {detail or 'unbekannter Fehler'}")
+
+    return Document(path=target, name=target.name, pages=count_tiff_pages(target))
+
+
+def count_tiff_pages(path: Path) -> int:
+    """Ermittelt die Seitenzahl eines (mehrseitigen) TIFF."""
+    try:
+        from PIL import Image
+
+        with Image.open(path) as image:
+            return getattr(image, "n_frames", 1)
+    except Exception as error:  # pragma: no cover - defekte Dateien
+        raise RenderError(f"TIFF {path.name} konnte nicht gelesen werden: {error}") from error

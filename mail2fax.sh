@@ -30,6 +30,7 @@ var_storage=""
 var_ctid=""
 var_start_on_boot="1"
 var_libreoffice="no"
+var_sip="no"
 
 RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[0;33m'
 BLUE=$'\033[0;34m'; BOLD=$'\033[1m'; RESET=$'\033[0m'
@@ -185,6 +186,13 @@ advanced_settings() {
     "root-Passwort des Containers\n\n(Leer lassen: nur Anmeldung ueber die PVE-Konsole.)" \
     11 60 3>&1 1>&2 2>&3)" || die "Abgebrochen."
 
+  if whiptail --backtitle "${APP}" --title "Faxversand ueber SIP" \
+      --yesno "Faxversand ueber SIP einrichten?\n\nmail2fax meldet sich dann als IP-Telefon an Ihrer FRITZ!Box oder Telefonanlage an und faxt selbst (Asterisk wird mitinstalliert).\n\nBenoetigt rund 200 MiB zusaetzlich." 14 68; then
+    var_sip="yes"
+    var_ram="$(( var_ram < 1024 ? 1024 : var_ram ))"
+    var_disk="$(( var_disk < 6 ? 6 : var_disk ))"
+  fi
+
   if whiptail --backtitle "${APP}" --title "Office-Dokumente" \
       --yesno "LibreOffice mitinstallieren?\n\nErmoeglicht das Faxen von Word-/ODT-Anhaengen, belegt aber rund 500 MiB zusaetzlich." 12 65; then
     var_libreoffice="yes"
@@ -282,6 +290,16 @@ install_application() {
     apt-get install -y -qq --no-install-recommends curl ca-certificates >/dev/null
     bash -c \"\$(curl -fsSL ${REPO_RAW}/install/install.sh)\"
   " || die "Die Installation im Container ist fehlgeschlagen. Details: pct enter ${var_ctid}"
+
+  if [ "${var_sip}" = "yes" ]; then
+    msg_info "Richte Asterisk fuer den Faxversand ueber SIP ein ..."
+    pct exec "${var_ctid}" -- bash -c "
+      set -e
+      export DEBIAN_FRONTEND=noninteractive
+      bash -c \"\$(curl -fsSL ${REPO_RAW}/install/sip-setup.sh)\"
+    " || die "Die SIP-Einrichtung ist fehlgeschlagen. Details: pct enter ${var_ctid}"
+    msg_ok "SIP-Faxversand vorbereitet"
+  fi
 }
 
 summary() {
@@ -300,6 +318,12 @@ summary() {
   echo "   Es kann jederzeit neu gesetzt werden mit:"
   echo "     pct exec ${var_ctid} -- /opt/mail2fax/venv/bin/mail2fax passwd"
   echo
+  if [ "${var_sip}" = "yes" ]; then
+  echo "   Fuer den SIP-Versand legen Sie in der FRITZ!Box ein IP-Telefon an:"
+  echo "     Telefonie -> Telefoniegeraete -> Neues Geraet -> Telefon -> LAN/WLAN"
+  echo "   Dessen Zugangsdaten tragen Sie in der Oberflaeche unter 'Fax' ein."
+  echo
+  fi
   echo "   ${YELLOW}Wichtig:${RESET} Die Oberflaeche gehoert nicht ins Internet."
   echo "   Richten Sie dafuer keine Portweiterleitung ein."
   echo "${BOLD}==================================================================${RESET}"

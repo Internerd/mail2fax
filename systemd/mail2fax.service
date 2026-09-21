@@ -22,7 +22,9 @@ PrivateTmp=yes
 PrivateDevices=yes
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=/etc/mail2fax /var/lib/mail2fax
+# Das Asterisk-Verzeichnis wird nur beim SIP-Versand gebraucht; das
+# fuehrende "-" macht es optional, falls Asterisk nicht installiert ist.
+ReadWritePaths=/etc/mail2fax /var/lib/mail2fax -/etc/asterisk/mail2fax
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectKernelLogs=yes

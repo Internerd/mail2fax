@@ -41,7 +41,7 @@ ausschließlich aus dem lokalen Netz erreichbar ist.
 | Faxinhalt | Anhang bevorzugt (PDF, Bilder, Text; optional Office über LibreOffice), sonst der Mailtext als PDF |
 | Zielrufnummer | aus dem Betreff, z. B. `+49301234567` – auch `0301234567` oder `030/123 4567` |
 | Zugangsschutz | Absender-Whitelist (Pflicht), Rufnummernsperren, Mengenbegrenzung |
-| Versandwege | FRITZ!Box, HylaFAX, Fax-per-E-Mail-Gateway, beliebiges Kommando |
+| Versandwege | SIP (FRITZ!Box/TK-Anlage), HylaFAX, Fax-per-E-Mail-Gateway, beliebiges Kommando |
 | Weboberfläche | Konfiguration, Auftragsübersicht, Protokoll, Tests – nur im lokalen Netz |
 | Quittungen | optionale Statusmeldungen per SMTP an Absender und Administrator |
 | Betrieb | systemd-Dienst, Wiederholversuche, Auftragshistorie mit Löschfrist |
@@ -110,21 +110,42 @@ Erkannt werden unter anderem:
 
 | Backend | Wofür |
 |---|---|
-| **FRITZ!Box** | AVM-Router mit eingerichteter Faxfunktion |
-| **HylaFAX** | Telefonanlagen mit T.38-/ISDN-Gateway |
+| **SIP** | FRITZ!Box und Telefonanlagen – mail2fax meldet sich als IP-Telefon an und faxt selbst |
+| **HylaFAX** | vorhandene Faxserver mit T.38-/ISDN-Gateway |
 | **Fax per E-Mail** | Anbieter und Anlagen, die Faxe per Mail annehmen |
 | **Externes Kommando** | alles Übrige (Asterisk, 3CX, CapiSuite, eigene Skripte) |
+| **FRITZ!Box (Weboberfläche)** | Rückfallebene, wenn sich kein IP-Telefon einrichten lässt |
 | **Testbetrieb** | nimmt Aufträge an, sendet nichts – für die Inbetriebnahme |
 
 Einrichtung, Besonderheiten und Fehlersuche je Backend:
 **[docs/FAX-BACKENDS.md](docs/FAX-BACKENDS.md)**
 
-> **Zur FRITZ!Box:** AVM bietet für den Faxversand keine dokumentierte
-> Schnittstelle. mail2fax verwendet denselben Weg wie die Weboberfläche der
-> FRITZ!Box. Ein FRITZ!OS-Update kann diesen Weg verändern; Endpunkt und
-> Formularfelder sind deshalb in der Konfiguration anpassbar. Wer eine
-> garantiert stabile Anbindung braucht, nutzt besser *Fax per E-Mail*,
-> *HylaFAX* oder *Externes Kommando*.
+### SIP – der empfohlene Weg zur FRITZ!Box
+
+Statt die Weboberfläche des Routers fernzusteuern, **telefoniert mail2fax
+regulär**: Es meldet sich wie ein IP-Telefon an der FRITZ!Box oder
+Telefonanlage an und überträgt das Fax selbst. Die Signalverarbeitung
+(T.30/T.38) übernimmt ein mitinstallierter Asterisk mit spandsp.
+
+```
+E-Mail ─▶ mail2fax ─▶ PDF→TIFF ─▶ Asterisk (spandsp) ─SIP─▶ FRITZ!Box ─▶ Fax
+```
+
+Einrichtung im Container:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Internerd/mail2fax/main/install/sip-setup.sh)"
+```
+
+Danach in der FRITZ!Box ein IP-Telefon anlegen (*Telefonie → Telefoniegeräte →
+Neues Gerät → Telefon → LAN/WLAN*) und dessen Zugangsdaten in mail2fax unter
+*Fax* eintragen. Details, T.38-Hinweise und Fehlersuche:
+[docs/FAX-BACKENDS.md](docs/FAX-BACKENDS.md#sip--fritzbox-oder-telefonanlage)
+
+> **Zur FRITZ!Box über die Weboberfläche:** Dieser ältere Weg bleibt als
+> Rückfallebene erhalten. AVM bietet dafür keine dokumentierte Schnittstelle;
+> ein FRITZ!OS-Update kann ihn verändern. Endpunkt und Formularfelder sind
+> deshalb konfigurierbar. Wo möglich, ist SIP vorzuziehen.
 
 ## Sicherheit
 
@@ -155,6 +176,8 @@ journalctl -u mail2fax -f          # Protokoll mitlesen
 | Postfach einmalig prüfen | `mail2fax check-mail` |
 | Testfax senden | `mail2fax test-fax +49301234567` |
 | Verbindungen prüfen | `mail2fax test-imap` / `mail2fax test-backend` |
+| SIP-Konfiguration anwenden | `mail2fax sip-apply` |
+| SIP-Zustand anzeigen | `mail2fax sip-status` |
 | Konfiguration anzeigen | `mail2fax show-config` (ohne Passwörter) |
 
 Aktualisieren:

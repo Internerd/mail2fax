@@ -326,3 +326,104 @@ def test_setup_rejects_mismatched_passwords(tmp_path, monkeypatch):
             "/einrichtung", data={"password": "Passwort-Eins-1!", "password2": "Passwort-Zwei-2!"}
         )
         assert "überein" in response.text or "ueberein" in response.text
+
+
+# -- SIP-Einstellungen ------------------------------------------------------
+
+
+def basis_fax_formular(**extra):
+    """Pflichtfelder des Fax-Formulars, damit Teiltests nicht alles wiederholen."""
+    daten = {
+        "backend": "sip", "max_attempts": "3", "retry_delay": "300",
+        "attachment_mode": "first", "max_attachment_size": "20", "max_pages": "30",
+        "gw_port": "587", "gw_security": "starttls", "hy_port": "4559",
+        "sip_port": "5060", "sip_transport": "udp", "sip_maxrate": "14400",
+        "sip_timeout": "900",
+    }
+    daten.update(extra)
+    return daten
+
+
+def test_save_sip_settings(angemeldet, config_file):
+    angemeldet.post(
+        "/einstellungen/fax",
+        data=basis_fax_formular(
+            sip_server="fritz.box", sip_username="620", sip_password="sip-geheim",
+            sip_sender_number="+49301234567", sip_station_name="Buero",
+            sip_dial_national="on", sip_ecm="on", sip_dial_prefix="0",
+        ),
+    )
+    sip = load_config(config_file).fax.sip
+    assert sip.server == "fritz.box"
+    assert sip.username == "620"
+    assert sip.password == "sip-geheim"
+    assert sip.sender_number == "+49301234567"
+    assert sip.dial_national is True
+    assert sip.ecm is True
+    assert sip.dial_prefix == "0"
+    assert load_config(config_file).fax.backend == "sip"
+
+
+def test_sip_password_is_kept_when_field_empty(angemeldet, config_file):
+    angemeldet.post(
+        "/einstellungen/fax",
+        data=basis_fax_formular(sip_username="620", sip_password="erstes-geheim"),
+    )
+    angemeldet.post("/einstellungen/fax", data=basis_fax_formular(sip_username="620", sip_password=""))
+    assert load_config(config_file).fax.sip.password == "erstes-geheim"
+
+
+def test_t38_and_ecm_default_to_off(angemeldet, config_file):
+    """Nicht angehakte Kaestchen muessen die Einstellung abschalten."""
+    angemeldet.post(
+        "/einstellungen/fax",
+        data=basis_fax_formular(sip_username="620", sip_password="x", sip_t38="on", sip_ecm="on"),
+    )
+    assert load_config(config_file).fax.sip.t38 is True
+    angemeldet.post("/einstellungen/fax", data=basis_fax_formular(sip_username="620"))
+    sip = load_config(config_file).fax.sip
+    assert sip.t38 is False
+    assert sip.ecm is False
+
+
+def test_sip_apply_needs_credentials(angemeldet):
+    response = angemeldet.post(
+        "/einstellungen/fax/sip-anwenden", data=basis_fax_formular(sip_username="", sip_password="")
+    )
+    assert response.status_code == 200
+    assert "Benutzername oder Passwort" in response.text
+
+
+def test_sip_apply_writes_configuration(angemeldet, config_file, tmp_path, monkeypatch):
+    """Die Schaltflaeche erzeugt die Asterisk-Dateien und erzeugt AMI-Zugangsdaten."""
+    ziel = tmp_path / "asterisk"
+    config = load_config(config_file)
+    config.fax.sip.config_dir = str(ziel)
+    save_config(config, config_file)
+
+    monkeypatch.setattr("mail2fax.asterisk.reload_asterisk", lambda _sip: "Neu geladen.")
+
+    response = angemeldet.post(
+        "/einstellungen/fax/sip-anwenden",
+        data=basis_fax_formular(
+            sip_server="fritz.box", sip_username="620", sip_password="sip-geheim",
+            sip_sender_number="+49301234567",
+        ),
+    )
+    assert response.status_code == 200
+    assert "Neu geladen" in response.text
+    assert (ziel / "pjsip.conf").exists()
+    assert (ziel / "extensions.conf").exists()
+    assert (ziel / "manager.conf").exists()
+    assert load_config(config_file).fax.sip.ami_password != ""
+
+
+def test_sip_apply_reports_write_error(angemeldet, config_file, monkeypatch):
+    config = load_config(config_file)
+    config.fax.sip.config_dir = "/nicht/beschreibbar/asterisk"
+    save_config(config, config_file)
+    response = angemeldet.post(
+        "/einstellungen/fax/sip-anwenden",
+        data=basis_fax_formular(sip_username="620", sip_password="x"),
+    )
+    assert "sip-setup.sh" in response.text

@@ -44,12 +44,44 @@ smtp:
 
 # --- Faxversand ------------------------------------------------------------
 fax:
-  # fritzbox | hylafax | mailgateway | command | dummy
-  backend: fritzbox
+  # sip | fritzbox | hylafax | mailgateway | command | dummy
+  backend: sip
   max_attempts: 3                # Zustellversuche insgesamt
   retry_delay: 300               # Sekunden bis zur Wiederholung (verdoppelt sich)
   dry_run: false                 # true = annehmen, aber nicht senden
 
+  # --- SIP: FRITZ!Box oder Telefonanlage (empfohlen) ----------------------
+  # mail2fax meldet sich als IP-Telefon an der Anlage an und faxt selbst.
+  # Voraussetzung: Asterisk ist eingerichtet (install/sip-setup.sh).
+  # Die Asterisk-Konfiguration erzeugt "mail2fax sip-apply" aus diesen Werten.
+  sip:
+    server: fritz.box
+    port: 5060
+    transport: udp                # udp | tcp
+    username: '620'               # interne Rufnummer des IP-Telefons
+    password: BITTE-AENDERN
+    sender_number: '+49301234567' # eigene Faxnummer (Absenderkennung/TSI)
+    station_name: mail2fax        # Text der Faxkopfzeile
+    dial_prefix: ''               # Amtsholung, z. B. '0' an einer TK-Anlage
+    dial_national: true           # 0301234567 statt +49301234567 waehlen
+    # Viele FRITZ!Box-Modelle faxen ohne T.38 und ohne ECM zuverlaessiger.
+    t38: false
+    ecm: false
+    minrate: 2400
+    maxrate: 14400                # bei Abbruechen auf 9600 oder 4800 senken
+    timeout: 900                  # Wartezeit auf die Uebertragung
+    dial_timeout: 60              # Wartezeit auf das Abheben
+    # Steuerung des lokalen Asterisk. Das Passwort erzeugt sip-apply selbst.
+    ami_host: 127.0.0.1
+    ami_port: 5038
+    ami_user: mail2fax
+    ami_password: ''
+    endpoint_name: mail2fax-tk
+    config_dir: /etc/asterisk/mail2fax
+
+  # --- FRITZ!Box ueber die Weboberflaeche des Geraets ---------------------
+  # Steuert die Weboberflaeche fern und kann durch ein FRITZ!OS-Update
+  # brechen. Fuer die FRITZ!Box ist "sip" in der Regel die bessere Wahl.
   fritzbox:
     url: http://fritz.box
     username: faxbenutzer

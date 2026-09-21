@@ -5,13 +5,158 @@ was bei Ihnen vorhanden ist.
 
 | Backend | Geeignet für | Zuverlässigkeit | Aufwand |
 |---|---|---|---|
+| [SIP](#sip--fritzbox-oder-telefonanlage) | FRITZ!Box, TK-Anlagen, SIP-Trunks | hoch | mittel |
 | [Fax per E-Mail](#fax-per-e-mail) | Anbieter und Telefonanlagen mit Mail-Schnittstelle | hoch | gering |
 | [HylaFAX](#hylafax) | ISDN-/T.38-Gateways, eigene Faxserver | hoch | mittel |
 | [Externes Kommando](#externes-kommando) | Asterisk, 3CX, CapiSuite, eigene Skripte | hoch | mittel |
-| [FRITZ!Box](#fritzbox) | AVM-Router im Heim- und Kleinbüro | eingeschränkt¹ | gering |
+| [FRITZ!Box über die Weboberfläche](#fritzbox-über-die-weboberfläche) | AVM-Router, wenn SIP ausscheidet | eingeschränkt¹ | gering |
 | [Testbetrieb](#testbetrieb) | Inbetriebnahme, keine echte Zustellung | – | – |
 
-¹ AVM bietet keine dokumentierte Schnittstelle für den Faxversand. Siehe unten.
+¹ AVM bietet für den Faxversand keine dokumentierte Schnittstelle. Siehe unten.
+
+> **Für eine FRITZ!Box ist [SIP](#sip--fritzbox-oder-telefonanlage) der
+> empfohlene Weg.** Dabei telefoniert mail2fax regulär, statt die
+> Weboberfläche des Routers fernzusteuern – das bleibt von FRITZ!OS-Updates
+> unberührt und funktioniert genauso an anderen Telefonanlagen.
+
+---
+
+## SIP – FRITZ!Box oder Telefonanlage
+
+mail2fax meldet sich wie ein IP-Telefon an Ihrer Anlage an und überträgt das
+Fax selbst. Die Signalverarbeitung (T.30 bzw. T.38) übernimmt ein lokaler
+Asterisk mit `res_fax_spandsp`; mail2fax steuert ihn über das Asterisk Manager
+Interface.
+
+```
+E-Mail  ──▶  mail2fax  ──▶  PDF→TIFF  ──▶  Asterisk (spandsp)  ──SIP──▶  FRITZ!Box  ──▶  Fax
+```
+
+### 1. Asterisk installieren
+
+Im Container:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Internerd/mail2fax/main/install/sip-setup.sh)"
+```
+
+Das Skript installiert Asterisk und Ghostscript, schaltet das veraltete
+`chan_sip` ab (es belegt sonst Port 5060), bindet das Konfigurations-
+verzeichnis von mail2fax ein und aktiviert die lokale AMI-Schnittstelle.
+
+Bei der Installation über `mail2fax.sh` auf dem Proxmox-Host können Sie das
+im Dialog „Erweitert“ direkt mitauswählen.
+
+### 2. IP-Telefon in der Anlage anlegen
+
+**In der FRITZ!Box:**
+
+1. **Telefonie → Telefoniegeräte → Neues Gerät einrichten**
+2. **Telefon (mit und ohne Anrufbeantworter)** wählen → **LAN/WLAN (IP-Telefon)**
+3. Namen vergeben, z. B. `mail2fax`
+4. **Benutzername und Kennwort** notieren – die FRITZ!Box schlägt beides vor
+5. Unter **Ausgehende Anrufe** die Rufnummer auswählen, über die gefaxt wird
+6. Eingehende Anrufe können Sie abschalten – mail2fax nimmt keine an
+
+**An anderen TK-Anlagen** legen Sie eine gewöhnliche SIP-Nebenstelle an. Wird
+für ausgehende Gespräche eine Amtsholung benötigt (häufig `0`), tragen Sie
+diese in mail2fax unter *Amtsholung* ein.
+
+### 3. In mail2fax eintragen
+
+Weboberfläche → **Fax** → Versandweg **SIP (FRITZ!Box / Telefonanlage)**:
+
+| Feld | Beispiel | Hinweis |
+|---|---|---|
+| Anlage | `fritz.box` | Adresse der FRITZ!Box bzw. der Anlage |
+| Benutzername | `620` | aus Schritt 2 |
+| Passwort | – | aus Schritt 2 |
+| Eigene Faxnummer | `+49301234567` | Absenderkennung; ohne sie weisen viele Gegenstellen das Fax ab |
+| Amtsholung | leer | an TK-Anlagen oft `0` |
+| National wählen | an | an der FRITZ!Box üblich |
+
+Dann **„Speichern und Asterisk-Konfiguration anwenden“** drücken. Anschließend
+muss **„Backend prüfen“** `Registered` melden.
+
+Auf der Kommandozeile geht dasselbe mit:
+
+```bash
+mail2fax sip-apply      # Konfiguration schreiben und Asterisk neu laden
+mail2fax sip-status     # Registrierung, Endpunkt und Kanäle anzeigen
+mail2fax test-fax +49301234567
+```
+
+### 4. T.38 oder G.711?
+
+| Einstellung | Wirkung |
+|---|---|
+| **T.38 aus** (Vorgabe) | Fax als Software-Modem über G.711. Über eine FRITZ!Box meist die zuverlässigere Wahl. |
+| **T.38 an** | mail2fax fordert die Umschaltung auf T.38 an, mit Rückfall auf G.711. Sinnvoll bei SIP-Trunks, die T.38 sauber unterstützen. |
+
+Ebenso ist **ECM** (Fehlerkorrektur) standardmäßig aus: Über eine FRITZ!Box
+führt ECM häufiger zu Abbrüchen, als es hilft. Bei einem stabilen Trunk dürfen
+Sie es einschalten.
+
+### 5. Was mail2fax an Asterisk schreibt
+
+Ausschließlich Dateien in `/etc/asterisk/mail2fax/`; die mitgelieferten
+Dateien von Asterisk werden nur um je eine `#include`-Zeile ergänzt.
+
+| Datei | Inhalt |
+|---|---|
+| `pjsip.conf` | Transport, Auth, Registrierung, AOR und Endpunkt (nur `alaw`/`ulaw`, `direct_media=no`) |
+| `extensions.conf` | Kontext `mail2fax-send`: setzt `FAXOPT`, ruft `SendFAX` auf und meldet das Ergebnis per `UserEvent` zurück |
+| `manager.conf` | AMI-Benutzer, nur von `127.0.0.1` erreichbar, mit eng gefassten Rechten |
+
+Von Hand geänderte Werte in diesen Dateien gehen beim nächsten `sip-apply`
+verloren – ändern Sie stattdessen die Einstellungen in mail2fax.
+
+### 6. Faxweg ohne Telefonleitung prüfen
+
+Mit `--selftest` legt das Einrichtungsskript einen Empfangskontext an. Damit
+lässt sich der gesamte Weg (TIFF, Dialplan, spandsp, Rückmeldung) prüfen,
+ohne dass ein echter Anruf zustande kommt:
+
+```bash
+bash install/sip-setup.sh --selftest
+pytest -m integration            # aus dem Quellverzeichnis
+```
+
+Der Test sendet ein Fax von `SendFAX` an `ReceiveFAX` und prüft die empfangene
+Seite. Er wird übersprungen, wenn Asterisk nicht eingerichtet ist.
+
+### 7. Fehlersuche
+
+```bash
+mail2fax sip-status
+asterisk -rx "pjsip show registrations"
+asterisk -rx "core show channels"
+journalctl -u asterisk -f
+```
+
+| Meldung / Symptom | Ursache und Abhilfe |
+|---|---|
+| `Registrierung an …: Rejected` | Benutzername oder Passwort stimmen nicht. In der FRITZ!Box unter *Telefoniegeräte* das IP-Telefon bearbeiten und die Zugangsdaten neu setzen. |
+| `Registrierung an …: Unregistered` | Die Anlage ist nicht erreichbar. Adresse prüfen, aus dem Container testen: `ping fritz.box`. |
+| `Registrierung …: nicht gefunden` | `mail2fax sip-apply` wurde noch nicht ausgeführt. |
+| `Asterisk ist nicht erreichbar` | `systemctl status asterisk`; AMI aktiviert? (`install/sip-setup.sh` erledigt das) |
+| `Anruf kam nicht zustande: Besetzt` | Die Zielnummer ist belegt – mail2fax wiederholt den Versuch automatisch. |
+| `Verbindung endete ohne Faxübertragung` | Die Gegenstelle hat abgehoben, aber kein Faxsignal geliefert. Stimmt die Rufnummer? Ist es wirklich ein Faxanschluss? |
+| Übertragung bricht mitten in der Seite ab | Höchste Übertragungsrate auf 9600 oder 4800 senken, ECM und T.38 aus lassen. |
+| `Address already in use` im Asterisk-Protokoll | `chan_sip` belegt Port 5060. `install/sip-setup.sh` schaltet es ab; sonst in `/etc/asterisk/modules.conf` ergänzen: `noload => chan_sip.so` |
+| Asterisk findet die TIFF-Datei nicht | Das Spool-Verzeichnis muss für die Gruppe `asterisk` lesbar sein. `install/sip-setup.sh` setzt das; prüfen mit `ls -ld /var/lib/mail2fax/spool` (erwartet: `drwxr-s--- mail2fax asterisk`). |
+
+### 8. Grenzen
+
+* **Nur ein Fax gleichzeitig** – mail2fax arbeitet die Warteschlange der Reihe
+  nach ab. Das ist für den vorgesehenen Einsatzzweck ausreichend.
+* **Asterisk braucht Platz und Arbeitsspeicher** – rund 200 MiB auf der Platte
+  und etwa 100 MiB im Betrieb. Planen Sie den Container entsprechend.
+* **Fax über VoIP bleibt empfindlich.** Paketverluste führen zu Abbrüchen. Das
+  ist keine Eigenheit von mail2fax, sondern gilt für jeden Faxversand über
+  VoIP-Anschlüsse.
+* mail2fax **nimmt keine Faxe entgegen.** Eingehende Anrufe auf dem
+  SIP-Konto werden abgewiesen.
 
 ---
 
@@ -125,7 +270,12 @@ Diese Anlagen bieten meist eine der folgenden Möglichkeiten:
 
 ---
 
-## FRITZ!Box
+## FRITZ!Box über die Weboberfläche
+
+> **Erst prüfen, ob [SIP](#sip--fritzbox-oder-telefonanlage) infrage kommt.**
+> Dieser Weg hier steuert die Weboberfläche der FRITZ!Box fern und kann
+> durch ein FRITZ!OS-Update brechen. Er bleibt als Rückfallebene, wenn
+> sich kein IP-Telefon einrichten lässt.
 
 ### Voraussetzungen
 

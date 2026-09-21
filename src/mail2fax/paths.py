@@ -19,8 +19,16 @@ DB_PATH = DATA_DIR / "mail2fax.db"
 
 
 def ensure_dirs() -> None:
-    """Legt die Datenverzeichnisse an (idempotent)."""
+    """Legt die Datenverzeichnisse an (idempotent).
+
+    Die Rechte werden nur beim Anlegen gesetzt. Bestehende Verzeichnisse
+    bleiben unangetastet - der SIP-Versand braucht etwa ein Spool-Verzeichnis
+    mit setgid-Bit und der Gruppe "asterisk", damit Asterisk die Faxdateien
+    lesen kann. Das wuerde ein unbedingtes chmod wieder zerstoeren.
+    """
     for directory in (DATA_DIR, SPOOL_DIR):
+        if directory.exists():
+            continue
         directory.mkdir(parents=True, exist_ok=True)
         # 0750: Dienstbenutzer und Gruppe duerfen hinein, sonst niemand.
         with contextlib.suppress(PermissionError):

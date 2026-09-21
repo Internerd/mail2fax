@@ -54,10 +54,34 @@ Mailschleifen entstehen.
 
 | Schlüssel | Vorgabe | Bedeutung |
 |---|---|---|
-| `backend` | `dummy` | `fritzbox`, `hylafax`, `mailgateway`, `command`, `dummy` |
+| `backend` | `dummy` | `sip`, `fritzbox`, `hylafax`, `mailgateway`, `command`, `dummy` |
 | `max_attempts` | `3` | Zustellversuche insgesamt |
 | `retry_delay` | `300` | Sekunden bis zur Wiederholung; verdoppelt sich je Versuch |
 | `dry_run` | `false` | `true` = annehmen, aber nicht senden |
+
+### `fax.sip` – FRITZ!Box oder Telefonanlage über SIP
+
+| Schlüssel | Vorgabe | Bedeutung |
+|---|---|---|
+| `server` / `port` | `fritz.box` / `5060` | Adresse der Anlage |
+| `transport` | `udp` | `udp` oder `tcp` |
+| `username` / `password` | – | Zugangsdaten des IP-Telefons |
+| `sender_number` | – | eigene Faxnummer (Absenderkennung/TSI) |
+| `station_name` | `mail2fax` | Text der Faxkopfzeile |
+| `dial_prefix` | – | Amtsholung, an TK-Anlagen oft `0` |
+| `dial_national` | `true` | `0301234567` statt `+49301234567` wählen |
+| `t38` | `false` | T.38 anbieten; an der FRITZ!Box meist besser aus |
+| `ecm` | `false` | Fehlerkorrektur; an der FRITZ!Box meist besser aus |
+| `minrate` / `maxrate` | `2400` / `14400` | Übertragungsrate; bei Abbrüchen senken |
+| `timeout` | `900` | Sekunden Wartezeit auf die Übertragung |
+| `dial_timeout` | `60` | Sekunden Wartezeit auf das Abheben |
+| `ami_*` | – | Steuerung des lokalen Asterisk; wird automatisch gesetzt |
+| `endpoint_name` | `mail2fax-tk` | Name des erzeugten PJSIP-Endpunkts |
+| `config_dir` | `/etc/asterisk/mail2fax` | Zielverzeichnis der erzeugten Asterisk-Dateien |
+
+Nach jeder Änderung an diesen Werten muss die Asterisk-Konfiguration neu
+geschrieben werden – über die Schaltfläche in der Weboberfläche oder mit
+`mail2fax sip-apply`.
 
 Die Unterabschnitte `fritzbox`, `hylafax`, `mailgateway` und `command` sind in
 [FAX-BACKENDS.md](FAX-BACKENDS.md) beschrieben.

@@ -9,8 +9,10 @@ from .dummy import DummyBackend
 from .fritzbox import FritzboxBackend
 from .hylafax import HylafaxBackend
 from .mailgateway import MailGatewayBackend
+from .sip import SipBackend
 
 BACKENDS: dict[str, type[FaxBackend]] = {
+    "sip": SipBackend,
     "fritzbox": FritzboxBackend,
     "hylafax": HylafaxBackend,
     "mailgateway": MailGatewayBackend,

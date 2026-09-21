@@ -104,20 +104,54 @@ verlassen die Faxinhalte Ihr Netz. Dann sind zusätzlich zu beachten:
 
 Siehe [DATENSCHUTZ.md](DATENSCHUTZ.md), Abschnitt „Auftragsverarbeitung“.
 
-## 8. Lizenz und Marken
+## 8. Lizenzen der mitgenutzten Systemkomponenten
+
+Für den Faxversand über SIP installiert mail2fax zwei Programme nach, die
+unter strengeren Lizenzen stehen als mail2fax selbst:
+
+| Programm | Lizenz | Wofür |
+|---|---|---|
+| Asterisk | GPL-2.0 | Signalverarbeitung T.30/T.38 (spandsp) |
+| Ghostscript | AGPL-3.0 | Wandlung PDF → Fax-TIFF |
+
+Einordnung:
+
+* mail2fax **ruft diese Programme als eigenständige Prozesse auf** –
+  Ghostscript über die Kommandozeile, Asterisk über ein Netzwerkprotokoll.
+  Es findet keine Verlinkung im urheberrechtlichen Sinne statt. Die
+  MIT-Lizenz von mail2fax bleibt davon unberührt, und die GPL bzw. AGPL
+  erstreckt sich nicht auf den Quelltext von mail2fax.
+* Beide Programme werden **aus den Paketquellen Ihrer Distribution**
+  installiert, nicht von diesem Projekt verbreitet. Den Quelltext stellt
+  die Distribution bereit.
+* **Wenn Sie mail2fax als fertiges Abbild weitergeben** – etwa als
+  vorkonfigurierten Container oder als Appliance –, verbreiten Sie damit
+  auch Asterisk und Ghostscript. Dann treffen Sie die Pflichten aus GPL-2.0
+  und AGPL-3.0, insbesondere die Pflicht, den Quelltext dieser Komponenten
+  zugänglich zu machen. Prüfen Sie das vor einer Weitergabe.
+* Für den **eigenen Betrieb im lokalen Netz** entstehen daraus keine
+  zusätzlichen Pflichten.
+
+Wer diese Abhängigkeit vermeiden möchte, nutzt ein Backend ohne Asterisk und
+Ghostscript – etwa *Fax per E-Mail*.
+
+## 9. Lizenz und Marken
 
 * mail2fax steht unter der **MIT-Lizenz** (siehe [LICENSE](../LICENSE)).
   Verwendete Fremdbibliotheken und deren Lizenzen sind in
   [NOTICE](../NOTICE) aufgeführt.
-* **FRITZ!Box** und **FRITZ!OS** sind Marken der AVM GmbH. **Proxmox** ist
+* **FRITZ!Box** und **FRITZ!OS** sind Marken der AVM GmbH. **Asterisk** ist
+  eine Marke der Sangoma Technologies Corporation. **Proxmox** ist
   eine Marke der Proxmox Server Solutions GmbH. Dieses Projekt steht in
   keiner Verbindung zu diesen Unternehmen und wird von ihnen weder
   unterstützt noch geprüft. Die Nennung erfolgt ausschließlich beschreibend.
-* Die Anbindung an die FRITZ!Box erfolgt über die Weboberfläche des Geräts.
-  Prüfen Sie eigenverantwortlich, ob dies mit den Nutzungsbedingungen Ihres
-  Geräts vereinbar ist.
+* Die Anbindung über **SIP** nutzt die dafür vorgesehene Funktion der
+  FRITZ!Box (IP-Telefon) und ist insoweit unproblematisch. Das ältere
+  Backend „FRITZ!Box über die Weboberfläche" steuert dagegen die
+  Weboberfläche des Geräts fern; prüfen Sie eigenverantwortlich, ob dies mit
+  den Nutzungsbedingungen Ihres Geräts vereinbar ist.
 
-## 9. Einsatz im Unternehmen
+## 10. Einsatz im Unternehmen
 
 Zusätzlich können relevant werden:
 
@@ -128,7 +162,7 @@ Zusätzlich können relevant werden:
 * branchenspezifische Vorgaben (z. B. ärztliche Schweigepflicht nach
   § 203 StGB, anwaltliche Verschwiegenheit, § 9 KWG).
 
-## 10. Veröffentlichung auf GitHub und Impressum
+## 11. Veröffentlichung auf GitHub und Impressum
 
 Für ein rein privat oder innerbetrieblich betriebenes Systeme im lokalen Netz
 besteht **keine Impressumspflicht** nach § 5 DDG (vormals § 5 TMG), da es sich

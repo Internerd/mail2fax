@@ -31,8 +31,99 @@
     </label>
   </div>
 
+  <details class="card" {{ 'open' if config.fax.backend == 'sip' }}>
+    <summary>SIP – FRITZ!Box oder Telefonanlage</summary>
+    <p class="hint">
+      mail2fax meldet sich als IP-Telefon an Ihrer Anlage an und faxt selbst.
+      Voraussetzung: Asterisk ist installiert (<code>install/sip-setup.sh</code>).
+      Einrichtung Schritt für Schritt in <code>docs/FAX-BACKENDS.md</code>.
+    </p>
+    <div class="row">
+      <div>
+        <label for="sip_server">Anlage (FRITZ!Box / TK-Anlage)</label>
+        <input type="text" id="sip_server" name="sip_server" value="{{ config.fax.sip.server }}" placeholder="fritz.box">
+      </div>
+      <div>
+        <label for="sip_port">SIP-Port</label>
+        <input type="number" id="sip_port" name="sip_port" value="{{ config.fax.sip.port }}" min="1" max="65535">
+      </div>
+      <div>
+        <label for="sip_transport">Transport</label>
+        <select id="sip_transport" name="sip_transport">
+          <option value="udp" {{ 'selected' if config.fax.sip.transport == 'udp' }}>UDP</option>
+          <option value="tcp" {{ 'selected' if config.fax.sip.transport == 'tcp' }}>TCP</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="sip_username">Benutzername / interne Rufnummer</label>
+        <input type="text" id="sip_username" name="sip_username" value="{{ config.fax.sip.username }}" placeholder="620" autocomplete="off">
+      </div>
+      <div>
+        <label for="sip_password">Passwort des IP-Telefons</label>
+        <input type="password" id="sip_password" name="sip_password" placeholder="{{ '•••••••• (unverändert)' if config.fax.sip.password else 'Passwort' }}" autocomplete="off">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="sip_sender_number">Eigene Faxnummer (Absenderkennung)</label>
+        <input type="text" id="sip_sender_number" name="sip_sender_number" value="{{ config.fax.sip.sender_number }}" placeholder="+49301234567">
+      </div>
+      <div>
+        <label for="sip_station_name">Text der Faxkopfzeile</label>
+        <input type="text" id="sip_station_name" name="sip_station_name" value="{{ config.fax.sip.station_name }}">
+      </div>
+      <div>
+        <label for="sip_dial_prefix">Amtsholung</label>
+        <input type="text" id="sip_dial_prefix" name="sip_dial_prefix" value="{{ config.fax.sip.dial_prefix }}" placeholder="z. B. 0 an einer TK-Anlage">
+      </div>
+    </div>
+    <label class="inline">
+      <input type="checkbox" name="sip_dial_national" {{ 'checked' if config.fax.sip.dial_national }}>
+      National wählen (0301234567 statt +49301234567) – an einer FRITZ!Box üblich
+    </label>
+    <label class="inline">
+      <input type="checkbox" name="sip_t38" {{ 'checked' if config.fax.sip.t38 }}>
+      T.38 anbieten – viele FRITZ!Box-Modelle faxen ohne T.38 zuverlässiger
+    </label>
+    <label class="inline">
+      <input type="checkbox" name="sip_ecm" {{ 'checked' if config.fax.sip.ecm }}>
+      Fehlerkorrektur (ECM) – über eine FRITZ!Box oft besser abgeschaltet
+    </label>
+    <div class="row">
+      <div>
+        <label for="sip_maxrate">Höchste Übertragungsrate (bit/s)</label>
+        <select id="sip_maxrate" name="sip_maxrate">
+          {% for rate in [2400, 4800, 7200, 9600, 12000, 14400] %}
+          <option value="{{ rate }}" {{ 'selected' if config.fax.sip.maxrate == rate }}>{{ rate }}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">Bei Abbrüchen auf 9600 oder 4800 senken.</p>
+      </div>
+      <div>
+        <label for="sip_timeout">Wartezeit auf die Übertragung (Sekunden)</label>
+        <input type="number" id="sip_timeout" name="sip_timeout" value="{{ config.fax.sip.timeout }}" min="60" max="3600">
+      </div>
+    </div>
+    <div class="actions">
+      <button type="submit" formaction="/einstellungen/fax/sip-anwenden" formnovalidate>
+        Speichern und Asterisk-Konfiguration anwenden
+      </button>
+    </div>
+    <p class="hint">
+      Die Schaltfläche schreibt die Asterisk-Konfiguration neu und lädt sie.
+      Danach sollte „Backend prüfen“ <em>Registered</em> melden.
+    </p>
+  </details>
+
   <details class="card" {{ 'open' if config.fax.backend == 'fritzbox' }}>
-    <summary>AVM FRITZ!Box</summary>
+    <summary>AVM FRITZ!Box (über die Weboberfläche des Geräts)</summary>
+    <p class="hint">
+      Dieser Weg steuert die Weboberfläche der FRITZ!Box fern und kann durch ein
+      FRITZ!OS-Update brechen. Für die FRITZ!Box ist in der Regel das
+      Backend <strong>SIP</strong> die bessere Wahl.
+    </p>
     <div class="row">
       <div>
         <label for="fb_url">Adresse</label>

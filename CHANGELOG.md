@@ -5,6 +5,32 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unveröffentlicht]
 
+### Hinzugefügt
+
+- **Faxversand über SIP** an FRITZ!Box und Telefonanlagen: mail2fax meldet
+  sich als IP-Telefon an und überträgt das Fax selbst. Die Signalverarbeitung
+  (T.30 bzw. T.38) übernimmt ein lokal installierter Asterisk mit
+  `res_fax_spandsp`, gesteuert über das Asterisk Manager Interface.
+  Damit entfällt die Abhängigkeit von der Weboberfläche der FRITZ!Box.
+- Wandlung der Dokumente in Fax-TIFF (CCITT Gruppe 4, 1728 px, 204×196 dpi)
+  mit Ghostscript
+- mail2fax erzeugt die Asterisk-Konfiguration selbst (PJSIP-Registrierung,
+  Fax-Dialplan, AMI-Benutzer) – über `mail2fax sip-apply` oder die
+  Schaltfläche in der Weboberfläche
+- Neue Befehle `mail2fax sip-apply` und `mail2fax sip-status`
+- Einrichtungsskript `install/sip-setup.sh`; die SIP-Einrichtung lässt sich
+  auch direkt bei der LXC-Installation mitauswählen
+- Einstellbar: T.38, ECM, Übertragungsrate, Amtsholung, nationale Wahl
+- Integrationstest, der ein echtes Fax von `SendFAX` an `ReceiveFAX` sendet
+  und die empfangene Seite prüft (`pytest -m integration`)
+
+### Geändert
+
+- Das Backend „FRITZ!Box über die Weboberfläche" bleibt erhalten, ist aber
+  nicht mehr der empfohlene Weg für eine FRITZ!Box
+- `ensure_dirs` überschreibt die Rechte bestehender Verzeichnisse nicht mehr;
+  der SIP-Versand braucht ein Spool-Verzeichnis mit der Gruppe `asterisk`
+
 ## [1.0.0] – 2026-09-21
 
 Erste Veröffentlichung.

@@ -19,7 +19,7 @@ def document(tmp_path):
 
 
 def test_registry_covers_all_backends():
-    assert set(BACKENDS) == {"fritzbox", "hylafax", "mailgateway", "command", "dummy"}
+    assert set(BACKENDS) == {"sip", "fritzbox", "hylafax", "mailgateway", "command", "dummy"}
 
 
 def test_unknown_backend_raises():

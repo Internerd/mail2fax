@@ -218,6 +218,76 @@ def cmd_show_config(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_sip_apply(args: argparse.Namespace) -> int:
+    """Schreibt die Asterisk-Konfiguration aus den SIP-Einstellungen."""
+    from .asterisk import generate_ami_secret, reload_asterisk, write_config
+
+    path = _config_path(args)
+    config = load_config(path)
+    setup_logging("DEBUG" if args.verbose else config.log_level)
+    sip = config.fax.sip
+
+    if not sip.username or not sip.password:
+        print(
+            "Fehler: Fuer die SIP-Anbindung fehlen Benutzername oder Passwort. "
+            "Bitte zuerst in der Weboberflaeche unter 'Fax' eintragen.",
+            file=sys.stderr,
+        )
+        return 2
+
+    if not sip.ami_password:
+        sip.ami_password = generate_ami_secret()
+        save_config(config, path)
+        print("Zugangsdaten fuer die Asterisk-Steuerung (AMI) erzeugt.")
+
+    try:
+        written = write_config(sip)
+    except OSError as error:
+        print(
+            f"Fehler: Konfiguration konnte nicht geschrieben werden: {error}\n"
+            f"Existiert {sip.config_dir} und ist es beschreibbar? "
+            "Die Einrichtung erledigt install/sip-setup.sh.",
+            file=sys.stderr,
+        )
+        return 1
+
+    for datei in written:
+        print(f"Geschrieben: {datei}")
+
+    if args.no_reload:
+        print("Neuladen uebersprungen (--no-reload).")
+        return 0
+    try:
+        print(reload_asterisk(sip))
+    except RuntimeError as error:
+        print(f"Warnung: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_sip_status(args: argparse.Namespace) -> int:
+    """Zeigt den Zustand der SIP-Registrierung und der Faxmodule."""
+    from .fax.ami import AmiClient, AmiError
+
+    config = load_config(_config_path(args))
+    setup_logging("DEBUG" if args.verbose else config.log_level)
+    sip = config.fax.sip
+    try:
+        with AmiClient(sip.ami_host, sip.ami_port, sip.ami_user, sip.ami_password) as client:
+            print("== Registrierung ==")
+            print(client.command("pjsip show registrations").strip() or "(keine)")
+            print("\n== Endpunkt ==")
+            print(client.command(f"pjsip show endpoint {sip.endpoint_name}").split("ParameterName")[0].strip())
+            print("\n== Faxmodule ==")
+            print(client.command("module show like fax").strip())
+            print("\n== Aktive Kanaele ==")
+            print(client.command("core show channels").strip())
+    except AmiError as error:
+        print(f"Fehler: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mail2fax",
@@ -247,6 +317,18 @@ def build_parser() -> argparse.ArgumentParser:
     test_fax.set_defaults(func=cmd_test_fax)
 
     subparsers.add_parser("test-backend", help="Fax-Backend pruefen").set_defaults(func=cmd_test_backend)
+
+    sip_apply = subparsers.add_parser(
+        "sip-apply", help="Asterisk-Konfiguration aus den SIP-Einstellungen schreiben"
+    )
+    sip_apply.add_argument(
+        "--no-reload", action="store_true", help="Nur schreiben, Asterisk nicht neu laden"
+    )
+    sip_apply.set_defaults(func=cmd_sip_apply)
+
+    subparsers.add_parser(
+        "sip-status", help="Zustand der SIP-Registrierung anzeigen"
+    ).set_defaults(func=cmd_sip_status)
     subparsers.add_parser("test-imap", help="IMAP-Verbindung pruefen").set_defaults(func=cmd_test_imap)
 
     passwd = subparsers.add_parser("passwd", help="Passwort der Weboberflaeche setzen")

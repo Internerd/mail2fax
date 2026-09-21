@@ -104,3 +104,66 @@ def test_merge_pdfs_single_document_is_passthrough(tmp_path):
 def test_merge_pdfs_without_sources(tmp_path):
     with pytest.raises(RenderError):
         merge_pdfs([], tmp_path / "ziel.pdf")
+
+
+# -- Fax-TIFF (fuer den Versand ueber SIP) ----------------------------------
+
+import shutil
+
+import pytest as _pytest
+
+needs_ghostscript = _pytest.mark.skipif(
+    shutil.which("gs") is None, reason="Ghostscript ist nicht installiert"
+)
+
+
+@needs_ghostscript
+def test_pdf_to_tiff_produces_group4_fax(tmp_path):
+    from PIL import Image
+
+    from mail2fax.render import pdf_to_tiff
+
+    quelle = text_to_pdf("Inhalt der Faxseite", tmp_path / "quelle.pdf").path
+    document = pdf_to_tiff(quelle, tmp_path / "fax.tif")
+
+    assert document.pages == 1
+    with Image.open(document.path) as image:
+        assert image.format == "TIFF"
+        assert image.mode == "1", "Fax-TIFF muss einfarbig (1 Bit) sein"
+        assert image.size[0] == 1728, "Fax verlangt 1728 Pixel je Zeile"
+        # Gruppe-4-Kompression (CCITT T.6)
+        assert image.info.get("compression") == "group4"
+        assert image.tag_v2.get(282) == 204, "horizontale Aufloesung 204 dpi"
+        assert image.tag_v2.get(283) == 196, "vertikale Aufloesung 196 dpi"
+
+
+@needs_ghostscript
+def test_pdf_to_tiff_keeps_all_pages(tmp_path):
+    from mail2fax.render import count_tiff_pages, pdf_to_tiff
+
+    langer_text = "\n".join(f"Zeile {index}" for index in range(200))
+    quelle = text_to_pdf(langer_text, tmp_path / "lang.pdf")
+    document = pdf_to_tiff(quelle.path, tmp_path / "lang.tif")
+
+    assert document.pages == quelle.pages > 1
+    assert count_tiff_pages(document.path) == quelle.pages
+
+
+@needs_ghostscript
+def test_pdf_to_tiff_standard_resolution(tmp_path):
+    from PIL import Image
+
+    from mail2fax.render import pdf_to_tiff
+
+    quelle = text_to_pdf("Inhalt", tmp_path / "quelle.pdf").path
+    document = pdf_to_tiff(quelle, tmp_path / "fax.tif", resolution="standard")
+    with Image.open(document.path) as image:
+        assert image.tag_v2.get(283) == 98
+
+
+def test_pdf_to_tiff_rejects_unknown_resolution(tmp_path):
+    from mail2fax.render import pdf_to_tiff
+
+    quelle = text_to_pdf("Inhalt", tmp_path / "quelle.pdf").path
+    with _pytest.raises(RenderError, match=r"[Aa]ufloesung"):
+        pdf_to_tiff(quelle, tmp_path / "fax.tif", resolution="gibtsnicht")

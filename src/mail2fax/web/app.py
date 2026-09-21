@@ -409,6 +409,23 @@ def create_app(config_path: Path | None = None, *, start_worker: bool = True) ->
             gateway.password = str(form.get("gw_password"))
         gateway.from_address = str(form.get("gw_from", "")).strip()
 
+        sip = fax.sip
+        sip.server = str(form.get("sip_server", "")).strip() or sip.server
+        sip.port = _as_int(form.get("sip_port"), sip.port)
+        sip.transport = _choice(form.get("sip_transport"), ["udp", "tcp"], sip.transport)
+        sip.username = str(form.get("sip_username", "")).strip()
+        if str(form.get("sip_password", "")):
+            sip.password = str(form.get("sip_password"))
+        sip.sender_number = str(form.get("sip_sender_number", "")).strip()
+        sip.station_name = str(form.get("sip_station_name", "")).strip() or "mail2fax"
+        sip.dial_prefix = str(form.get("sip_dial_prefix", "")).strip()
+        sip.dial_national = form.get("sip_dial_national") == "on"
+        sip.t38 = form.get("sip_t38") == "on"
+        sip.ecm = form.get("sip_ecm") == "on"
+        sip.maxrate = _as_int(form.get("sip_maxrate"), sip.maxrate)
+        sip.minrate = min(sip.minrate, sip.maxrate)
+        sip.timeout = max(60, min(3600, _as_int(form.get("sip_timeout"), sip.timeout)))
+
         command_line = str(form.get("cmd_argv", "")).strip()
         fax.command.argv = [part.strip() for part in command_line.splitlines() if part.strip()]
 
@@ -422,6 +439,45 @@ def create_app(config_path: Path | None = None, *, start_worker: bool = True) ->
 
         store_config(config)
         return render(request, "settings_fax.html", message="Einstellungen gespeichert.", error=None)
+
+
+    @app.post("/einstellungen/fax/sip-anwenden", dependencies=[Depends(require_login)])
+    async def sip_apply(request: Request) -> Response:
+        """Speichert die Einstellungen und erzeugt die Asterisk-Konfiguration."""
+        from ..asterisk import generate_ami_secret, reload_asterisk, write_config
+
+        await fax_settings_save(request)
+        config = current_config()
+        sip = config.fax.sip
+
+        if not sip.username or not sip.password:
+            return render(
+                request, "settings_fax.html", message=None,
+                error="Fuer die SIP-Anbindung fehlen Benutzername oder Passwort.",
+            )
+        if not sip.ami_password:
+            sip.ami_password = generate_ami_secret()
+            store_config(config)
+
+        try:
+            write_config(sip)
+        except OSError as error:
+            return render(
+                request, "settings_fax.html", message=None,
+                error=(
+                    f"Die Asterisk-Konfiguration konnte nicht geschrieben werden: {error}. "
+                    f"Existiert {sip.config_dir} und darf mail2fax hineinschreiben? "
+                    "Das richtet install/sip-setup.sh ein."
+                ),
+            )
+        try:
+            hinweis = reload_asterisk(sip)
+        except RuntimeError as error:
+            return render(request, "settings_fax.html", message=None, error=str(error))
+        return render(
+            request, "settings_fax.html",
+            message=f"Einstellungen gespeichert. {hinweis}", error=None,
+        )
 
     @app.post("/einstellungen/fax/test", dependencies=[Depends(require_login)])
     async def fax_test(request: Request) -> Response:
