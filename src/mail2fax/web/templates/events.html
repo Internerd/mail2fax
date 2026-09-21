@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% set active = 'events' %}
+{% block title %}Protokoll – mail2fax{% endblock %}
+{% block content %}
+<h1>Protokoll</h1>
+<p class="hint">
+  Die letzten Ereignisse. Ausführliche Meldungen stehen im Journal:
+  <code>journalctl -u mail2fax -f</code>
+</p>
+<div class="card">
+  <table>
+    <tr><th>Zeitpunkt</th><th>Auftrag</th><th>Stufe</th><th>Meldung</th></tr>
+    {% for event in events %}
+    <tr>
+      <td class="num">{{ event['created_at'] | ts }}</td>
+      <td>{% if event['job_id'] %}<a href="/auftraege/{{ event['job_id'] }}">#{{ event['job_id'] }}</a>{% else %}–{% endif %}</td>
+      <td>{{ event['level'] }}</td>
+      <td>{{ event['message'] }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="hint">Noch keine Einträge.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

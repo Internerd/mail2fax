@@ -1,0 +1,44 @@
+[Unit]
+Description=mail2fax - E-Mail-zu-Fax-Gateway
+Documentation=https://github.com/Internerd/mail2fax
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mail2fax
+Group=mail2fax
+WorkingDirectory=/opt/mail2fax
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/mail2fax/venv/bin/mail2fax web
+Restart=on-failure
+RestartSec=10s
+
+# --- Absicherung des Dienstes ---------------------------------------------
+# Der Dienst verarbeitet fremde E-Mails und Dokumente. Er laeuft daher ohne
+# Sonderrechte und darf nur auf seine eigenen Verzeichnisse schreiben.
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/etc/mail2fax /var/lib/mail2fax
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

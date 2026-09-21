@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Sicherheitslücke melden
+    url: https://github.com/Internerd/mail2fax/security/advisories/new
+    about: Bitte NICHT als öffentliches Issue melden – siehe SECURITY.md.
+  - name: Frage oder Diskussion
+    url: https://github.com/Internerd/mail2fax/discussions
+    about: Für Fragen zur Einrichtung und zum Betrieb.

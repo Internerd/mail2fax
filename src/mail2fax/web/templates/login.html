@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Anmelden – mail2fax{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <div class="card">
+    <h1>Anmelden</h1>
+    <form method="post" action="/login">
+      <label for="password">Passwort</label>
+      <input type="password" id="password" name="password" required autofocus autocomplete="current-password">
+      <div class="actions"><button type="submit">Anmelden</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

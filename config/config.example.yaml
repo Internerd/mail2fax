@@ -1,0 +1,150 @@
+# ---------------------------------------------------------------------------
+# mail2fax - Beispielkonfiguration
+#
+# Die aktive Konfiguration liegt unter /etc/mail2fax/config.yaml.
+# Sie enthaelt Zugangsdaten im Klartext und wird deshalb mit den Rechten
+# 0640 (root:mail2fax) gespeichert. Aendern Sie diese Rechte nicht.
+#
+# Alle Werte lassen sich auch bequem in der Weboberflaeche pflegen.
+# Nach dem Bearbeiten von Hand:  systemctl restart mail2fax
+# ---------------------------------------------------------------------------
+
+log_level: INFO                  # DEBUG, INFO, WARNING oder ERROR
+history_retention_days: 90       # Auftragshistorie loeschen nach n Tagen (0 = nie)
+delete_documents_after_send: true  # Faxdateien nach Erfolg loeschen (Datenminimierung)
+
+# --- Ueberwachtes Postfach (IMAP) -----------------------------------------
+imap:
+  enabled: true
+  host: imap.example.com
+  port: 993
+  security: ssl                  # ssl | starttls | none
+  username: fax@example.com
+  password: BITTE-AENDERN
+  folder: INBOX
+  poll_interval: 60              # Sekunden zwischen zwei Abfragen
+  processed_action: move         # seen | move | delete
+  processed_folder: Fax/Versendet
+  rejected_folder: Fax/Abgelehnt
+  max_message_size_mb: 25
+  verify_tls: true               # Nur auf Testsystemen abschalten
+
+# --- Postausgang fuer Statusmeldungen (optional) ---------------------------
+smtp:
+  enabled: true
+  host: smtp.example.com
+  port: 587
+  security: starttls             # starttls | ssl | none
+  username: fax@example.com
+  password: BITTE-AENDERN
+  from_address: fax@example.com
+  notify_sender: true            # Absender ueber Erfolg/Misserfolg informieren
+  admin_address: admin@example.com
+  verify_tls: true
+
+# --- Faxversand ------------------------------------------------------------
+fax:
+  # fritzbox | hylafax | mailgateway | command | dummy
+  backend: fritzbox
+  max_attempts: 3                # Zustellversuche insgesamt
+  retry_delay: 300               # Sekunden bis zur Wiederholung (verdoppelt sich)
+  dry_run: false                 # true = annehmen, aber nicht senden
+
+  fritzbox:
+    url: http://fritz.box
+    username: faxbenutzer
+    password: BITTE-AENDERN
+    sender_number: '+49301234567'   # eigene Faxnummer (Absenderkennung)
+    sender_name: mail2fax
+    verify_tls: false               # bei HTTPS mit eigenem Zertifikat
+    timeout: 180
+    # Endpunkt und Formularfelder der FRITZ!Box-Oberflaeche. Nur anpassen,
+    # wenn ein FRITZ!OS-Update den Versand bricht - siehe docs/FAX-BACKENDS.md.
+    endpoint: /cgi-bin/luacgi_notimeout
+    form_fields:
+      sid: sid
+      page: page
+      page_value: fx_send
+      apply: apply
+      recipient: SendFax:settings/recipient
+      sender_number: SendFax:settings/sender_number
+      sender_name: SendFax:settings/sender_name
+      subject: SendFax:settings/subject
+      file: UploadFax
+
+  hylafax:
+    binary: /usr/bin/sendfax
+    host: localhost
+    port: 4559
+    user: ''
+    sender_number: ''
+    extra_args: []
+    timeout: 600
+
+  mailgateway:
+    # Platzhalter: {number} (+49301234567), {number_digits} (49301234567),
+    #              {number_national} (0301234567)
+    recipient_template: '{number_digits}@fax.example.net'
+    subject_template: Fax an {number}
+    body_template: Automatisch erzeugt durch mail2fax.
+    host: ''                     # leer = globalen SMTP-Postausgang nutzen
+    port: 587
+    security: starttls
+    username: ''
+    password: ''
+    from_address: ''
+    verify_tls: true
+
+  command:
+    # Ein Argument je Listeneintrag; es wird keine Shell benutzt.
+    # Platzhalter: {number} {number_digits} {number_national} {file} {subject}
+    argv: []
+    #  - /usr/local/bin/faxsend.sh
+    #  - '{number}'
+    #  - '{file}'
+    timeout: 600
+    env: {}
+
+# --- Was wird gefaxt -------------------------------------------------------
+content:
+  attachment_mode: first         # first = erster passender Anhang, all = alle
+  allowed_extensions: [pdf, png, jpg, jpeg, gif, bmp, tif, tiff, txt]
+  convert_office: false          # benoetigt libreoffice-core
+  office_extensions: [doc, docx, odt, rtf, xls, xlsx, ods]
+  max_attachment_size_mb: 20
+  max_pages: 30                  # 0 = unbegrenzt
+  include_mail_header: true      # Von/Betreff/Datum auf der Textseite
+
+# --- Sicherheit ------------------------------------------------------------
+security:
+  # WICHTIG: Nur diese Absender duerfen Faxe ausloesen.
+  # Ist die Liste leer, wird KEINE Nachricht verarbeitet.
+  sender_whitelist:
+    - chef@example.com
+    - '*@intern.example.com'
+  allowed_number_prefixes: ['+49']
+  blocked_number_prefixes: ['+49900', '+49137', '+49180', '+49181', '+491900']
+  accept_national_format: true   # "0301234567" zu "+49301234567" normalisieren
+  default_country_code: '+49'
+  rate_limit_per_hour: 20        # 0 = unbegrenzt
+  rate_limit_per_sender_per_hour: 10
+
+# --- Weboberflaeche --------------------------------------------------------
+web:
+  host: 0.0.0.0                  # Zugriff wird ueber allowed_networks begrenzt
+  port: 8080
+  # Nur aus diesen Netzen ist die Oberflaeche erreichbar.
+  # Tragen Sie hier Ihr LAN ein und entfernen Sie, was Sie nicht brauchen.
+  allowed_networks:
+    - 127.0.0.0/8
+    - ::1/128
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - fc00::/7
+    - fe80::/10
+  # Wird durch "mail2fax passwd" bzw. die Ersteinrichtung gesetzt.
+  password_hash: ''
+  secret_key: ''
+  session_timeout_minutes: 120
+  login_attempts: 10

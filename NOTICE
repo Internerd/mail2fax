@@ -1,0 +1,40 @@
+mail2fax
+Copyright (c) 2026 mail2fax contributors
+
+Dieses Produkt steht unter der MIT-Lizenz (siehe LICENSE).
+
+Hinweis zur Entstehung
+----------------------
+Quelltext und Dokumentation dieses Projekts wurden überwiegend mit
+Unterstützung generativer KI erstellt. Einzelheiten: docs/KI-NUTZUNG.md
+
+Verwendete Fremdbibliotheken
+----------------------------
+Diese Software nutzt zur Laufzeit die folgenden Open-Source-Pakete. Ihre
+Lizenztexte liegen nach der Installation im jeweiligen Paketverzeichnis unter
+/opt/mail2fax/venv/lib/python3.*/site-packages/.
+
+  FastAPI            MIT             https://github.com/fastapi/fastapi
+  Starlette          BSD-3-Clause    https://github.com/encode/starlette
+  Uvicorn            BSD-3-Clause    https://github.com/encode/uvicorn
+  Pydantic           MIT             https://github.com/pydantic/pydantic
+  Jinja2             BSD-3-Clause    https://github.com/pallets/jinja
+  python-multipart   Apache-2.0      https://github.com/Kludex/python-multipart
+  PyYAML             MIT             https://github.com/yaml/pyyaml
+  httpx              BSD-3-Clause    https://github.com/encode/httpx
+  ReportLab          BSD-3-Clause    https://www.reportlab.com/
+  Pillow             MIT-CMU         https://github.com/python-pillow/Pillow
+  pypdf              BSD-3-Clause    https://github.com/py-pdf/pypdf
+
+Optional, nur bei aktivierter Office-Wandlung:
+  LibreOffice        MPL-2.0         https://www.libreoffice.org/
+
+Marken
+------
+FRITZ!Box und FRITZ!OS sind Marken der AVM GmbH.
+Proxmox und Proxmox VE sind Marken der Proxmox Server Solutions GmbH.
+HylaFAX ist eine Marke von iFAX Solutions, Inc.
+
+Dieses Projekt steht in keiner Verbindung zu diesen Unternehmen und wird von
+ihnen weder unterstützt noch geprüft. Die Nennung erfolgt ausschließlich
+beschreibend.

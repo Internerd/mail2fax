@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% set active = 'fax' %}
+{% block title %}Fax – mail2fax{% endblock %}
+{% block content %}
+<h1>Fax-Einstellungen</h1>
+
+<form method="post" action="/einstellungen/fax">
+  <div class="card">
+    <h2>Versandweg</h2>
+    <label for="backend">Backend</label>
+    <select id="backend" name="backend">
+      {% for key, label in backends.items() %}
+      <option value="{{ key }}" {{ 'selected' if config.fax.backend == key }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">Details zu den Versandwegen stehen in <code>docs/FAX-BACKENDS.md</code>.</p>
+    <div class="row">
+      <div>
+        <label for="max_attempts">Zustellversuche</label>
+        <input type="number" id="max_attempts" name="max_attempts" value="{{ config.fax.max_attempts }}" min="1" max="10">
+      </div>
+      <div>
+        <label for="retry_delay">Wartezeit vor Wiederholung (Sekunden)</label>
+        <input type="number" id="retry_delay" name="retry_delay" value="{{ config.fax.retry_delay }}" min="10" max="86400">
+        <p class="hint">Verdoppelt sich mit jedem Fehlversuch.</p>
+      </div>
+    </div>
+    <label class="inline">
+      <input type="checkbox" name="dry_run" {{ 'checked' if config.fax.dry_run }}>
+      Testbetrieb – Aufträge werden angenommen, aber nicht gesendet
+    </label>
+  </div>
+
+  <details class="card" {{ 'open' if config.fax.backend == 'fritzbox' }}>
+    <summary>AVM FRITZ!Box</summary>
+    <div class="row">
+      <div>
+        <label for="fb_url">Adresse</label>
+        <input type="text" id="fb_url" name="fb_url" value="{{ config.fax.fritzbox.url }}" placeholder="http://fritz.box">
+      </div>
+      <div>
+        <label for="fb_username">Benutzername</label>
+        <input type="text" id="fb_username" name="fb_username" value="{{ config.fax.fritzbox.username }}" autocomplete="off">
+      </div>
+      <div>
+        <label for="fb_password">Passwort</label>
+        <input type="password" id="fb_password" name="fb_password" placeholder="{{ '•••••••• (unverändert)' if config.fax.fritzbox.password else 'Passwort' }}" autocomplete="off">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="fb_sender_number">Eigene Faxnummer (Absenderkennung)</label>
+        <input type="text" id="fb_sender_number" name="fb_sender_number" value="{{ config.fax.fritzbox.sender_number }}" placeholder="+49301234567">
+      </div>
+      <div>
+        <label for="fb_sender_name">Absendername</label>
+        <input type="text" id="fb_sender_name" name="fb_sender_name" value="{{ config.fax.fritzbox.sender_name }}">
+      </div>
+    </div>
+    <label class="inline">
+      <input type="checkbox" name="fb_verify_tls" {{ 'checked' if config.fax.fritzbox.verify_tls }}>
+      TLS-Zertifikat prüfen (bei HTTPS mit selbstsigniertem Zertifikat abschalten)
+    </label>
+    <p class="hint">
+      Voraussetzung: In der FRITZ!Box ist unter „Telefonie → Telefoniegeräte“ eine
+      Faxfunktion eingerichtet und der Benutzer besitzt die Berechtigung „VoIP-Telefonie/Fax“.
+    </p>
+  </details>
+
+  <details class="card" {{ 'open' if config.fax.backend == 'hylafax' }}>
+    <summary>HylaFAX</summary>
+    <div class="row">
+      <div>
+        <label for="hy_binary">Pfad zu sendfax</label>
+        <input type="text" id="hy_binary" name="hy_binary" value="{{ config.fax.hylafax.binary }}">
+      </div>
+      <div>
+        <label for="hy_host">Server</label>
+        <input type="text" id="hy_host" name="hy_host" value="{{ config.fax.hylafax.host }}">
+      </div>
+      <div>
+        <label for="hy_port">Port</label>
+        <input type="number" id="hy_port" name="hy_port" value="{{ config.fax.hylafax.port }}" min="1" max="65535">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="hy_user">Benutzer</label>
+        <input type="text" id="hy_user" name="hy_user" value="{{ config.fax.hylafax.user }}">
+      </div>
+      <div>
+        <label for="hy_sender_number">Absenderkennung (TSI)</label>
+        <input type="text" id="hy_sender_number" name="hy_sender_number" value="{{ config.fax.hylafax.sender_number }}">
+      </div>
+    </div>
+  </details>
+
+  <details class="card" {{ 'open' if config.fax.backend == 'mailgateway' }}>
+    <summary>Fax per E-Mail (Gateway/Provider)</summary>
+    <label for="gw_recipient">Vorlage der Empfängeradresse</label>
+    <input type="text" id="gw_recipient" name="gw_recipient" value="{{ config.fax.mailgateway.recipient_template }}">
+    <p class="hint">
+      Platzhalter: <code>{number}</code> (+49301234567), <code>{number_digits}</code> (49301234567),
+      <code>{number_national}</code> (0301234567).
+    </p>
+    <div class="row">
+      <div>
+        <label for="gw_host">SMTP-Server (leer = Postausgang aus den E-Mail-Einstellungen)</label>
+        <input type="text" id="gw_host" name="gw_host" value="{{ config.fax.mailgateway.host }}">
+      </div>
+      <div>
+        <label for="gw_port">Port</label>
+        <input type="number" id="gw_port" name="gw_port" value="{{ config.fax.mailgateway.port }}" min="1" max="65535">
+      </div>
+      <div>
+        <label for="gw_security">Verschlüsselung</label>
+        <select id="gw_security" name="gw_security">
+          <option value="starttls" {{ 'selected' if config.fax.mailgateway.security == 'starttls' }}>STARTTLS</option>
+          <option value="ssl" {{ 'selected' if config.fax.mailgateway.security == 'ssl' }}>SSL/TLS</option>
+          <option value="none" {{ 'selected' if config.fax.mailgateway.security == 'none' }}>Ohne</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="gw_username">Benutzername</label>
+        <input type="text" id="gw_username" name="gw_username" value="{{ config.fax.mailgateway.username }}" autocomplete="off">
+      </div>
+      <div>
+        <label for="gw_password">Passwort</label>
+        <input type="password" id="gw_password" name="gw_password" placeholder="{{ '•••••••• (unverändert)' if config.fax.mailgateway.password else 'Passwort' }}" autocomplete="off">
+      </div>
+      <div>
+        <label for="gw_from">Absenderadresse</label>
+        <input type="text" id="gw_from" name="gw_from" value="{{ config.fax.mailgateway.from_address }}">
+      </div>
+    </div>
+    <p class="hint">
+      Bei externen Anbietern verlassen die Faxinhalte Ihr Netz. Ein Auftragsverarbeitungs-
+      vertrag nach Art. 28 DSGVO ist dann in der Regel erforderlich – siehe <code>docs/DATENSCHUTZ.md</code>.
+    </p>
+  </details>
+
+  <details class="card" {{ 'open' if config.fax.backend == 'command' }}>
+    <summary>Externes Kommando</summary>
+    <label for="cmd_argv">Kommando (ein Argument pro Zeile)</label>
+    <textarea id="cmd_argv" name="cmd_argv" spellcheck="false">{{ config.fax.command.argv | join('\n') }}</textarea>
+    <p class="hint">
+      Platzhalter: <code>{number}</code>, <code>{number_digits}</code>, <code>{number_national}</code>,
+      <code>{file}</code>, <code>{subject}</code>. Beispiel:<br>
+      <code>/usr/local/bin/faxsend.sh</code> / <code>{number}</code> / <code>{file}</code>
+    </p>
+  </details>
+
+  <div class="card">
+    <h2>Inhalt des Faxes</h2>
+    <p class="hint">
+      Enthält die E-Mail einen verwertbaren Anhang, wird dieser gefaxt.
+      Andernfalls wird der Text der E-Mail zu einer Faxseite gesetzt.
+    </p>
+    <div class="row">
+      <div>
+        <label for="attachment_mode">Anhänge</label>
+        <select id="attachment_mode" name="attachment_mode">
+          <option value="first" {{ 'selected' if config.content.attachment_mode == 'first' }}>Nur den ersten passenden Anhang</option>
+          <option value="all" {{ 'selected' if config.content.attachment_mode == 'all' }}>Alle passenden Anhänge</option>
+        </select>
+      </div>
+      <div>
+        <label for="max_attachment_size">Max. Anhanggröße (MiB)</label>
+        <input type="number" id="max_attachment_size" name="max_attachment_size" value="{{ config.content.max_attachment_size_mb }}" min="1" max="100">
+      </div>
+      <div>
+        <label for="max_pages">Max. Seiten je Fax (0 = unbegrenzt)</label>
+        <input type="number" id="max_pages" name="max_pages" value="{{ config.content.max_pages }}" min="0" max="500">
+      </div>
+    </div>
+    <label for="allowed_extensions">Zugelassene Dateiendungen</label>
+    <input type="text" id="allowed_extensions" name="allowed_extensions" value="{{ config.content.allowed_extensions | join(', ') }}">
+    <label class="inline">
+      <input type="checkbox" name="convert_office" {{ 'checked' if config.content.convert_office }}>
+      Office-Dokumente mit LibreOffice wandeln (Paket <code>libreoffice-core</code> nötig)
+    </label>
+    <label class="inline">
+      <input type="checkbox" name="include_mail_header" {{ 'checked' if config.content.include_mail_header }}>
+      Kopfzeile (Von/Betreff/Datum) auf der Textseite ausgeben
+    </label>
+  </div>
+
+  <div class="actions"><button type="submit">Speichern</button></div>
+</form>
+
+<div class="card">
+  <h2>Tests</h2>
+  <form method="post" action="/einstellungen/fax/test" class="actions" style="margin-top:0">
+    <button type="submit" class="secondary">Backend prüfen</button>
+  </form>
+  <form method="post" action="/einstellungen/fax/testfax">
+    <label for="test_number">Testfax senden an</label>
+    <input type="text" id="test_number" name="test_number" placeholder="+49301234567">
+    <div class="actions"><button type="submit" class="secondary">Testfax senden</button></div>
+  </form>
+</div>
+{% endblock %}

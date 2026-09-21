@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% set active = 'jobs' %}
+{% block title %}Auftrag {{ job.id }} – mail2fax{% endblock %}
+{% block content %}
+<h1>Auftrag #{{ job.id }} <span class="badge {{ job.status }}">{{ job.status }}</span></h1>
+<div class="card">
+  <table>
+    <tr><th>Angelegt</th><td>{{ job.created_at | ts }}</td></tr>
+    <tr><th>Zuletzt geändert</th><td>{{ job.updated_at | ts }}</td></tr>
+    <tr><th>Absender</th><td>{{ job.sender or '–' }}</td></tr>
+    <tr><th>Betreff</th><td>{{ job.subject or '–' }}</td></tr>
+    <tr><th>Zielrufnummer</th><td class="num">{{ job.number or '–' }}</td></tr>
+    <tr><th>Seiten</th><td>{{ job.pages if job.pages is not none else '–' }}</td></tr>
+    <tr><th>Versuche</th><td>{{ job.attempts }}</td></tr>
+    <tr><th>Backend</th><td>{{ backends.get(job.backend, job.backend) or '–' }}</td></tr>
+    <tr><th>Quelle</th><td>{{ job.source }}</td></tr>
+    <tr><th>Dokumente</th><td>{% for document in job.documents %}{{ document }}<br>{% else %}–{% endfor %}</td></tr>
+  </table>
+  {% if job.error %}<div class="notice err" style="margin-top:1rem">{{ job.error }}</div>{% endif %}
+  <div class="actions">
+    <a class="button secondary" href="/auftraege">Zurück</a>
+    {% if job.status in ['failed', 'queued'] %}
+    <form method="post" action="/auftraege/{{ job.id }}/wiederholen">
+      <button type="submit">Erneut versuchen</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+<div class="card">
+  <h2>Verlauf</h2>
+  <table>
+    {% for event in events %}
+    <tr><td class="num">{{ event['created_at'] | ts }}</td><td>{{ event['level'] }}</td><td>{{ event['message'] }}</td></tr>
+    {% else %}
+    <tr><td class="hint">Keine Einträge.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

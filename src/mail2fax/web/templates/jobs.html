@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% set active = 'jobs' %}
+{% block title %}Aufträge – mail2fax{% endblock %}
+{% block content %}
+<h1>Aufträge</h1>
+<div class="card">
+  <div class="actions" style="margin-top:0">
+    <a class="button secondary" href="/auftraege">Alle</a>
+    <a class="button secondary" href="/auftraege?status_filter=queued">Warteschlange ({{ stats.queued }})</a>
+    <a class="button secondary" href="/auftraege?status_filter=sent">Versendet ({{ stats.sent }})</a>
+    <a class="button secondary" href="/auftraege?status_filter=failed">Fehlgeschlagen ({{ stats.failed }})</a>
+    <a class="button secondary" href="/auftraege?status_filter=rejected">Abgelehnt ({{ stats.rejected }})</a>
+  </div>
+</div>
+<div class="card">
+  {% if jobs %}
+  <table>
+    <tr><th>#</th><th>Zeitpunkt</th><th>Absender</th><th>Betreff</th><th>An</th><th>Seiten</th><th>Versuche</th><th>Status</th></tr>
+    {% for job in jobs %}
+    <tr>
+      <td><a href="/auftraege/{{ job.id }}">{{ job.id }}</a></td>
+      <td>{{ job.created_at | ts }}</td>
+      <td>{{ job.sender or '–' }}</td>
+      <td>{{ job.subject | truncate(45) }}</td>
+      <td class="num">{{ job.number or '–' }}</td>
+      <td>{{ job.pages if job.pages is not none else '–' }}</td>
+      <td>{{ job.attempts }}</td>
+      <td><span class="badge {{ job.status }}">{{ job.status }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="hint">Keine Aufträge in dieser Ansicht.</p>
+  {% endif %}
+</div>
+{% endblock %}

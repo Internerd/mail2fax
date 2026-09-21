@@ -1,0 +1,82 @@
+name: Fehler melden
+description: Etwas funktioniert nicht wie erwartet
+labels: ["fehler"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für die Meldung!
+
+        **Bitte entfernen Sie Zugangsdaten, echte E-Mail-Adressen und echte
+        Rufnummern aus allen Auszügen, die Sie hier einfügen.**
+
+        Sicherheitslücken bitte **nicht** hier melden – siehe
+        [SECURITY.md](https://github.com/Internerd/mail2fax/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: beschreibung
+    attributes:
+      label: Was passiert?
+      description: Was haben Sie erwartet, was passiert stattdessen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: schritte
+    attributes:
+      label: Schritte zur Nachstellung
+      placeholder: |
+        1. Mail mit Betreff "…" an das überwachte Postfach senden
+        2. In der Oberfläche unter "Aufträge" nachsehen
+        3. Dort erscheint …
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Ausgabe von `mail2fax --version`
+      placeholder: mail2fax 1.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Fax-Backend
+      options:
+        - FRITZ!Box
+        - HylaFAX
+        - Fax per E-Mail
+        - Externes Kommando
+        - Testbetrieb
+        - Betrifft den Faxversand nicht
+    validations:
+      required: true
+
+  - type: input
+    id: umgebung
+    attributes:
+      label: Umgebung
+      description: Proxmox-Version, Betriebssystem des Containers
+      placeholder: "Proxmox VE 8.2, Debian 12 (LXC, unprivilegiert)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: protokoll
+    attributes:
+      label: Protokollauszug
+      description: "Ausgabe von: journalctl -u mail2fax -n 100 --no-pager"
+      render: text
+
+  - type: checkboxes
+    id: bestaetigung
+    attributes:
+      label: Vor dem Absenden
+      options:
+        - label: Ich habe Zugangsdaten und personenbezogene Daten aus den Auszügen entfernt
+          required: true
+        - label: Ich habe geprüft, ob es dazu schon ein Issue gibt
+          required: true

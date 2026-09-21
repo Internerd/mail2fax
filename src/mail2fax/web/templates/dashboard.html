@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% set active = 'dashboard' %}
+{% block title %}Übersicht – mail2fax{% endblock %}
+{% block content %}
+<h1>Übersicht</h1>
+
+{% for warning in warnings %}<div class="notice warn">{{ warning }}</div>{% endfor %}
+
+<div class="grid">
+  <div class="stat"><div class="value">{{ stats.queued }}</div><div class="label">In Warteschlange</div></div>
+  <div class="stat"><div class="value">{{ stats.sent }}</div><div class="label">Versendet</div></div>
+  <div class="stat"><div class="value">{{ stats.failed }}</div><div class="label">Fehlgeschlagen</div></div>
+  <div class="stat"><div class="value">{{ stats.rejected }}</div><div class="label">Abgelehnt</div></div>
+</div>
+
+<div class="card">
+  <h2>Dienststatus</h2>
+  <table>
+    <tr><th>Hintergrunddienst</th><td>{{ 'läuft' if worker.running else 'gestoppt' }}</td></tr>
+    <tr><th>Letzte Postfachabfrage</th><td>{{ worker.last_poll | ts }}</td></tr>
+    <tr><th>Letzter Versand</th><td>{{ worker.last_success | ts }}</td></tr>
+    <tr><th>Fax-Backend</th><td>{{ backends.get(config.fax.backend, config.fax.backend) }}</td></tr>
+    <tr><th>Postfach</th><td>{{ config.imap.username or '–' }}{% if config.imap.host %} ({{ config.imap.host }}, alle {{ config.imap.poll_interval }} s){% endif %}</td></tr>
+  </table>
+  {% if worker.last_poll_error %}
+    <div class="notice err" style="margin-top:1rem">Letzter Fehler: {{ worker.last_poll_error }}</div>
+  {% endif %}
+  <form method="post" action="/pruefen" class="actions">
+    <button type="submit">Postfach jetzt prüfen</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Letzte Aufträge</h2>
+  {% if jobs %}
+  <table>
+    <tr><th>#</th><th>Zeitpunkt</th><th>Absender</th><th>An</th><th>Seiten</th><th>Status</th></tr>
+    {% for job in jobs %}
+    <tr>
+      <td><a href="/auftraege/{{ job.id }}">{{ job.id }}</a></td>
+      <td>{{ job.created_at | ts }}</td>
+      <td>{{ job.sender or '–' }}</td>
+      <td class="num">{{ job.number or '–' }}</td>
+      <td>{{ job.pages if job.pages is not none else '–' }}</td>
+      <td><span class="badge {{ job.status }}">{{ job.status }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="hint">Es wurden noch keine Aufträge verarbeitet.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>So wird ein Fax ausgelöst</h2>
+  <p>
+    Eine E-Mail von einer Adresse der Whitelist an <strong>{{ config.imap.username or 'das überwachte Postfach' }}</strong>
+    senden. Die Zielrufnummer steht im <strong>Betreff</strong>, z.&nbsp;B.:
+  </p>
+  <pre>Betreff: +49301234567</pre>
+  <p class="hint">
+    Ist ein verwertbarer Anhang vorhanden, wird dieser gefaxt – andernfalls der Text der E-Mail selbst.
+  </p>
+</div>
+{% endblock %}

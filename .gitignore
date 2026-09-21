@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.eggs/
+
+# Tests und Werkzeuge
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Lokale Entwicklung (koennen Zugangsdaten enthalten!)
+dev-config.yaml
+dev-data/
+*.local.yaml
+config.yaml
+!config/config.example.yaml
+
+# Laufzeitdaten
+*.db
+*.db-wal
+*.db-shm
+spool/
+*.pdf
+!docs/**/*.pdf
+
+# Editor und Betriebssystem
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store

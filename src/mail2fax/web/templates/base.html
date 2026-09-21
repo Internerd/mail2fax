@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}mail2fax{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">mail2fax <span>E-Mail-zu-Fax-Gateway</span></div>
+  <div>{% if not setup_required %}<a href="/logout">Abmelden</a>{% endif %}</div>
+</header>
+{% if not setup_required %}
+<nav class="main">
+  <a href="/" class="{{ 'active' if active == 'dashboard' }}">Übersicht</a>
+  <a href="/auftraege" class="{{ 'active' if active == 'jobs' }}">Aufträge</a>
+  <a href="/einstellungen/mail" class="{{ 'active' if active == 'mail' }}">E-Mail</a>
+  <a href="/einstellungen/fax" class="{{ 'active' if active == 'fax' }}">Fax</a>
+  <a href="/einstellungen/sicherheit" class="{{ 'active' if active == 'security' }}">Sicherheit</a>
+  <a href="/protokoll" class="{{ 'active' if active == 'events' }}">Protokoll</a>
+</nav>
+{% endif %}
+<main>
+  {% if request.query_params.get('hinweis') %}
+    <div class="notice ok">{{ request.query_params.get('hinweis') }}</div>
+  {% endif %}
+  {% if request.query_params.get('fehler') %}
+    <div class="notice err">{{ request.query_params.get('fehler') }}</div>
+  {% endif %}
+  {% if message %}<div class="notice ok">{{ message }}</div>{% endif %}
+  {% if error %}<div class="notice err">{{ error }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer>
+  mail2fax {{ version }} &middot; Betrieb nur im lokalen Netz vorgesehen &middot;
+  Faxversand unterliegt u.&nbsp;a. § 7 UWG – siehe docs/RECHTLICHES.md
+</footer>
+</body>
+</html>

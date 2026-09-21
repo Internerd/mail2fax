@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Abhaengigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Tests
+        run: pytest
+
+  lint:
+    name: Linter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Ruff installieren
+        run: pip install ruff
+
+      - name: Ruff (Regeln)
+        run: ruff check --output-format=github src tests
+
+  shell:
+    name: Shell-Skripte
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ShellCheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          shellcheck mail2fax.sh install/install.sh install/update.sh
+
+      - name: Syntaxpruefung
+        run: |
+          bash -n mail2fax.sh
+          bash -n install/install.sh
+          bash -n install/update.sh
+
+  package:
+    name: Paket bauen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Bauen und pruefen
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          twine check dist/*
+
+      - name: Beispielkonfiguration validieren
+        run: |
+          pip install -e .
+          python -c "
+          import yaml
+          from mail2fax.config import AppConfig
+          AppConfig.model_validate(yaml.safe_load(open('config/config.example.yaml')))
+          print('Beispielkonfiguration ist gueltig')
+          "
+
+      - name: Installation pruefen
+        run: |
+          export MAIL2FAX_CONFIG=./ci-config.yaml MAIL2FAX_DATA_DIR=./ci-data
+          mail2fax --version
+          mail2fax init-config
+          mail2fax passwd --password 'CI-Test-Passwort-1!'
+          mail2fax test-backend
+          mail2fax test-fax +49301234567
+          mail2fax show-config | grep -q '\*\*\*'

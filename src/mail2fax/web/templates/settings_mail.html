@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% set active = 'mail' %}
+{% block title %}E-Mail – mail2fax{% endblock %}
+{% block content %}
+<h1>E-Mail-Einstellungen</h1>
+
+<form method="post" action="/einstellungen/mail">
+  <div class="card">
+    <h2>Posteingang (IMAP)</h2>
+    <p class="hint">
+      Das Postfach, das auf neue Nachrichten überwacht wird. Empfohlen wird ein
+      eigenes Postfach, das ausschließlich für den Faxversand verwendet wird.
+    </p>
+    <label class="inline">
+      <input type="checkbox" name="imap_enabled" {{ 'checked' if config.imap.enabled }}>
+      Postfachüberwachung aktiv
+    </label>
+    <div class="row">
+      <div>
+        <label for="imap_host">Server</label>
+        <input type="text" id="imap_host" name="imap_host" value="{{ config.imap.host }}" placeholder="imap.example.com">
+      </div>
+      <div>
+        <label for="imap_port">Port</label>
+        <input type="number" id="imap_port" name="imap_port" value="{{ config.imap.port }}" min="1" max="65535">
+      </div>
+      <div>
+        <label for="imap_security">Verschlüsselung</label>
+        <select id="imap_security" name="imap_security">
+          <option value="ssl" {{ 'selected' if config.imap.security == 'ssl' }}>SSL/TLS (Port 993)</option>
+          <option value="starttls" {{ 'selected' if config.imap.security == 'starttls' }}>STARTTLS (Port 143)</option>
+          <option value="none" {{ 'selected' if config.imap.security == 'none' }}>Ohne (nicht empfohlen)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="imap_username">Benutzername</label>
+        <input type="text" id="imap_username" name="imap_username" value="{{ config.imap.username }}" autocomplete="off">
+      </div>
+      <div>
+        <label for="imap_password">Passwort</label>
+        <input type="password" id="imap_password" name="imap_password" placeholder="{{ '•••••••• (unverändert)' if config.imap.password else 'Passwort' }}" autocomplete="off">
+        <p class="hint">Leer lassen, um das gespeicherte Passwort zu behalten.</p>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="imap_folder">Ordner</label>
+        <input type="text" id="imap_folder" name="imap_folder" value="{{ config.imap.folder }}">
+      </div>
+      <div>
+        <label for="imap_poll_interval">Abfrageintervall (Sekunden)</label>
+        <input type="number" id="imap_poll_interval" name="imap_poll_interval" value="{{ config.imap.poll_interval }}" min="10" max="3600">
+      </div>
+      <div>
+        <label for="imap_max_size">Max. Nachrichtengröße (MiB)</label>
+        <input type="number" id="imap_max_size" name="imap_max_size" value="{{ config.imap.max_message_size_mb }}" min="1" max="200">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="imap_processed_action">Nach der Verarbeitung</label>
+        <select id="imap_processed_action" name="imap_processed_action">
+          <option value="seen" {{ 'selected' if config.imap.processed_action == 'seen' }}>Als gelesen markieren</option>
+          <option value="move" {{ 'selected' if config.imap.processed_action == 'move' }}>In Ordner verschieben</option>
+          <option value="delete" {{ 'selected' if config.imap.processed_action == 'delete' }}>Löschen</option>
+        </select>
+      </div>
+      <div>
+        <label for="imap_processed_folder">Zielordner (versendet)</label>
+        <input type="text" id="imap_processed_folder" name="imap_processed_folder" value="{{ config.imap.processed_folder }}">
+      </div>
+      <div>
+        <label for="imap_rejected_folder">Zielordner (abgelehnt)</label>
+        <input type="text" id="imap_rejected_folder" name="imap_rejected_folder" value="{{ config.imap.rejected_folder }}">
+      </div>
+    </div>
+    <label class="inline">
+      <input type="checkbox" name="imap_verify_tls" {{ 'checked' if config.imap.verify_tls }}>
+      TLS-Zertifikat prüfen (dringend empfohlen)
+    </label>
+  </div>
+
+  <div class="card">
+    <h2>Postausgang (SMTP) für Statusmeldungen</h2>
+    <p class="hint">Optional. Wird für Versandbestätigungen und Fehlermeldungen an den Absender genutzt.</p>
+    <label class="inline">
+      <input type="checkbox" name="smtp_enabled" {{ 'checked' if config.smtp.enabled }}>
+      Statusmeldungen versenden
+    </label>
+    <div class="row">
+      <div>
+        <label for="smtp_host">Server</label>
+        <input type="text" id="smtp_host" name="smtp_host" value="{{ config.smtp.host }}" placeholder="smtp.example.com">
+      </div>
+      <div>
+        <label for="smtp_port">Port</label>
+        <input type="number" id="smtp_port" name="smtp_port" value="{{ config.smtp.port }}" min="1" max="65535">
+      </div>
+      <div>
+        <label for="smtp_security">Verschlüsselung</label>
+        <select id="smtp_security" name="smtp_security">
+          <option value="starttls" {{ 'selected' if config.smtp.security == 'starttls' }}>STARTTLS (Port 587)</option>
+          <option value="ssl" {{ 'selected' if config.smtp.security == 'ssl' }}>SSL/TLS (Port 465)</option>
+          <option value="none" {{ 'selected' if config.smtp.security == 'none' }}>Ohne</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="smtp_username">Benutzername</label>
+        <input type="text" id="smtp_username" name="smtp_username" value="{{ config.smtp.username }}" autocomplete="off">
+      </div>
+      <div>
+        <label for="smtp_password">Passwort</label>
+        <input type="password" id="smtp_password" name="smtp_password" placeholder="{{ '•••••••• (unverändert)' if config.smtp.password else 'Passwort' }}" autocomplete="off">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="smtp_from">Absenderadresse</label>
+        <input type="text" id="smtp_from" name="smtp_from" value="{{ config.smtp.from_address }}" placeholder="fax@example.com">
+      </div>
+      <div>
+        <label for="smtp_admin">Adresse für Fehlermeldungen</label>
+        <input type="text" id="smtp_admin" name="smtp_admin" value="{{ config.smtp.admin_address }}" placeholder="admin@example.com">
+      </div>
+    </div>
+    <label class="inline">
+      <input type="checkbox" name="smtp_notify_sender" {{ 'checked' if config.smtp.notify_sender }}>
+      Absender der Ursprungsmail benachrichtigen
+    </label>
+    <label class="inline">
+      <input type="checkbox" name="smtp_verify_tls" {{ 'checked' if config.smtp.verify_tls }}>
+      TLS-Zertifikat prüfen
+    </label>
+  </div>
+
+  <div class="actions">
+    <button type="submit">Speichern</button>
+  </div>
+</form>
+
+<div class="card">
+  <h2>Tests</h2>
+  <form method="post" action="/einstellungen/mail/test" class="actions" style="margin-top:0">
+    <button type="submit" class="secondary">IMAP-Verbindung testen</button>
+  </form>
+  <form method="post" action="/einstellungen/mail/test-smtp">
+    <label for="test_recipient">Testnachricht senden an</label>
+    <input type="text" id="test_recipient" name="test_recipient" placeholder="{{ config.smtp.admin_address or 'adresse@example.com' }}">
+    <div class="actions"><button type="submit" class="secondary">Testnachricht senden</button></div>
+  </form>
+</div>
+{% endblock %}

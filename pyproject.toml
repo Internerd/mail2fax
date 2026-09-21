@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mail2fax"
+version = "1.0.0"
+description = "E-Mail-zu-Fax-Gateway mit Weboberflaeche fuer den Betrieb als Proxmox-LXC"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "mail2fax contributors" }]
+keywords = ["fax", "email", "imap", "fritzbox", "hylafax", "proxmox", "lxc"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Web Environment",
+  "Intended Audience :: System Administrators",
+  "Natural Language :: German",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Communications :: Fax",
+]
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "jinja2>=3.1",
+  "python-multipart>=0.0.9",
+  "pydantic>=2.5",
+  "PyYAML>=6.0",
+  "httpx>=0.26",
+  "reportlab>=4.0",
+  "pillow>=10.0",
+  "pypdf>=4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.4", "httpx>=0.26"]
+
+[project.scripts]
+mail2fax = "mail2fax.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Internerd/mail2fax"
+Issues = "https://github.com/Internerd/mail2fax/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+mail2fax = ["web/templates/*.html", "web/static/*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "S", "RUF"]
+ignore = [
+  "E501",    # Zeilenlaenge wird von ruff-format erledigt
+  "S101",    # assert ist in Tests und internen Invarianten in Ordnung
+  "RUF001",  # deutsche Texte enthalten Sonderzeichen
+  "RUF002",
+  "RUF003",
+  "B008",    # FastAPI nutzt Aufrufe in Parametervorgaben (Depends/Form)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"

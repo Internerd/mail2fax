@@ -1,0 +1,45 @@
+name: Funktion vorschlagen
+description: Eine Idee für eine Verbesserung
+labels: ["verbesserung"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Welches Problem soll gelöst werden?
+      description: Beschreiben Sie die Situation, nicht nur die gewünschte Lösung.
+    validations:
+      required: true
+
+  - type: textarea
+    id: vorschlag
+    attributes:
+      label: Wie könnte die Lösung aussehen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternativen
+    attributes:
+      label: Haben Sie Alternativen erwogen?
+
+  - type: dropdown
+    id: bereich
+    attributes:
+      label: Bereich
+      options:
+        - Faxversand / neues Backend
+        - E-Mail-Verarbeitung
+        - Weboberfläche
+        - Sicherheit
+        - Installation / Betrieb
+        - Dokumentation
+        - Sonstiges
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: mitarbeit
+    attributes:
+      label: Mitarbeit
+      options:
+        - label: Ich würde das selbst umsetzen und einen Pull Request einreichen
