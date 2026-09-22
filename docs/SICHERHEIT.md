@@ -60,8 +60,17 @@ Eingebaute Maßnahmen:
   HTTP 403 abgewiesen – vor jeder weiteren Verarbeitung.
   Ausgewertet wird dabei bewusst die echte Peer-Adresse, **nicht** der
   fälschbare `X-Forwarded-For`-Header.
-* **Anmeldung** mit PBKDF2-SHA256 (240 000 Iterationen), zeitkonstanter
-  Vergleich, Drosselung nach zu vielen Fehlversuchen (10 je 15 Minuten).
+* **Anmeldung mit Passwort** – PBKDF2-SHA256 mit 240 000 Iterationen,
+  zeitkonstanter Vergleich, Drosselung nach zu vielen Fehlversuchen
+  (10 je 15 Minuten). Das Passwort wird nie im Klartext gespeichert.
+* **Keine offene Phase.** Solange kein Passwort gesetzt ist, führt jeder
+  Aufruf zum Einrichtungsdialog – auch die Schnittstelle. Es gibt keinen
+  Zustand, in dem Einstellungen oder Aufträge ohne Anmeldung einsehbar oder
+  änderbar wären. Der Installer vergibt ohnehin sofort ein Zufallspasswort.
+* **Passwortwechsel in der Oberfläche** unter *Sicherheit → Passwort ändern*:
+  Das bisherige Passwort muss bestätigt werden, das neue muss mindestens
+  12 Zeichen aus drei Zeichenarten enthalten, und anschließend werden **alle**
+  Sitzungen beendet.
 * **Sitzungen** im Arbeitsspeicher mit `HttpOnly`- und `SameSite=Strict`-Cookie;
   nach einem Passwortwechsel werden alle Sitzungen beendet.
 * **Sicherheitsheader:** `Content-Security-Policy` ohne externe Quellen,

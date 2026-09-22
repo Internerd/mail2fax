@@ -23,11 +23,15 @@ from mail2fax.rules import Number
 # -- Simulierter Asterisk ---------------------------------------------------
 
 
-class FakeAsterisk(threading.Thread):
-    """Minimaler AMI-Server fuer die Tests."""
+class FakeAsterisk:
+    """Minimaler AMI-Server fuer die Tests.
+
+    Bewusst ohne Vererbung von ``threading.Thread``: Python 3.13 belegt dort
+    das Attribut ``_handle`` selbst, was gleichnamige Methoden einer
+    Unterklasse ueberschreiben wuerde.
+    """
 
     def __init__(self, *, secret="geheim", result=None, originate_error=None, delay=0.0):
-        super().__init__(daemon=True)
         self.secret = secret
         self.result = result
         self.originate_error = originate_error
@@ -39,12 +43,16 @@ class FakeAsterisk(threading.Thread):
         self._server.listen(1)
         self.port = self._server.getsockname()[1]
         self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._serve, name="fake-asterisk", daemon=True)
+
+    def start(self):
+        self._thread.start()
 
     def stop(self):
         self._stop.set()
         self._server.close()
 
-    def run(self):
+    def _serve(self):
         try:
             connection, _ = self._server.accept()
         except OSError:
@@ -65,9 +73,9 @@ class FakeAsterisk(threading.Thread):
                 buffer += chunk
                 while b"\r\n\r\n" in buffer:
                     raw, _, buffer = buffer.partition(b"\r\n\r\n")
-                    self._handle(connection, raw.decode())
+                    self._handle_action(connection, raw.decode())
 
-    def _handle(self, connection, raw):
+    def _handle_action(self, connection, raw):
         packet = parse_packet(raw)
         self.received.append(dict(packet))
         action = packet.get("action", "").lower()

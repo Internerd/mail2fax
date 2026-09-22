@@ -44,7 +44,7 @@ smtp:
 
 # --- Faxversand ------------------------------------------------------------
 fax:
-  # sip | fritzbox | hylafax | mailgateway | command | dummy
+  # sip | hylafax | mailgateway | command | dummy
   backend: sip
   max_attempts: 3                # Zustellversuche insgesamt
   retry_delay: 300               # Sekunden bis zur Wiederholung (verdoppelt sich)
@@ -78,31 +78,6 @@ fax:
     ami_password: ''
     endpoint_name: mail2fax-tk
     config_dir: /etc/asterisk/mail2fax
-
-  # --- FRITZ!Box ueber die Weboberflaeche des Geraets ---------------------
-  # Steuert die Weboberflaeche fern und kann durch ein FRITZ!OS-Update
-  # brechen. Fuer die FRITZ!Box ist "sip" in der Regel die bessere Wahl.
-  fritzbox:
-    url: http://fritz.box
-    username: faxbenutzer
-    password: BITTE-AENDERN
-    sender_number: '+49301234567'   # eigene Faxnummer (Absenderkennung)
-    sender_name: mail2fax
-    verify_tls: false               # bei HTTPS mit eigenem Zertifikat
-    timeout: 180
-    # Endpunkt und Formularfelder der FRITZ!Box-Oberflaeche. Nur anpassen,
-    # wenn ein FRITZ!OS-Update den Versand bricht - siehe docs/FAX-BACKENDS.md.
-    endpoint: /cgi-bin/luacgi_notimeout
-    form_fields:
-      sid: sid
-      page: page
-      page_value: fx_send
-      apply: apply
-      recipient: SendFax:settings/recipient
-      sender_number: SendFax:settings/sender_number
-      sender_name: SendFax:settings/sender_name
-      subject: SendFax:settings/subject
-      file: UploadFax
 
   hylafax:
     binary: /usr/bin/sendfax

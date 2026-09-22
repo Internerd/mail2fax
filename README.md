@@ -114,7 +114,6 @@ Erkannt werden unter anderem:
 | **HylaFAX** | vorhandene Faxserver mit T.38-/ISDN-Gateway |
 | **Fax per E-Mail** | Anbieter und Anlagen, die Faxe per Mail annehmen |
 | **Externes Kommando** | alles Übrige (Asterisk, 3CX, CapiSuite, eigene Skripte) |
-| **FRITZ!Box (Weboberfläche)** | Rückfallebene, wenn sich kein IP-Telefon einrichten lässt |
 | **Testbetrieb** | nimmt Aufträge an, sendet nichts – für die Inbetriebnahme |
 
 Einrichtung, Besonderheiten und Fehlersuche je Backend:
@@ -142,10 +141,12 @@ Neues Gerät → Telefon → LAN/WLAN*) und dessen Zugangsdaten in mail2fax unte
 *Fax* eintragen. Details, T.38-Hinweise und Fehlersuche:
 [docs/FAX-BACKENDS.md](docs/FAX-BACKENDS.md#sip--fritzbox-oder-telefonanlage)
 
-> **Zur FRITZ!Box über die Weboberfläche:** Dieser ältere Weg bleibt als
-> Rückfallebene erhalten. AVM bietet dafür keine dokumentierte Schnittstelle;
-> ein FRITZ!OS-Update kann ihn verändern. Endpunkt und Formularfelder sind
-> deshalb konfigurierbar. Wo möglich, ist SIP vorzuziehen.
+> **Hinweis zu älteren Installationen:** Ein früheres Backend steuerte die
+> Weboberfläche der FRITZ!Box fern. Es wurde entfernt, weil AVM dafür keine
+> dokumentierte Schnittstelle anbietet und jedes FRITZ!OS-Update den Weg
+> brechen konnte. Steht in Ihrer Konfiguration noch `backend: fritzbox`,
+> startet mail2fax im Testbetrieb und weist darauf hin – stellen Sie auf
+> **SIP** um.
 
 ## Sicherheit
 

@@ -7,6 +7,7 @@ enthaelt Zugangsdaten. Sie wird daher immer mit den Rechten 0640 geschrieben.
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 import secrets
 import tempfile
@@ -17,6 +18,8 @@ import yaml
 from pydantic import BaseModel, Field, field_validator
 
 from .paths import CONFIG_PATH
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _as_e164_prefix(value: Any) -> str:
@@ -72,42 +75,6 @@ class SmtpConfig(BaseModel):
     #: Zusaetzliche Adresse fuer Fehlermeldungen (optional).
     admin_address: str = ""
     verify_tls: bool = True
-
-
-class FritzboxConfig(BaseModel):
-    """Zugangsdaten fuer eine AVM FRITZ!Box.
-
-    Der Versand erfolgt ueber die Weboberflaeche der FRITZ!Box (dieselbe
-    Schnittstelle, die auch "Telefonie -> Fax" im Browser benutzt). AVM
-    aendert diese Oberflaeche zwischen FRITZ!OS-Versionen, deshalb sind
-    Endpunkt und Formularfelder konfigurierbar.
-    """
-
-    url: str = "http://fritz.box"
-    username: str = ""
-    password: str = ""
-    #: Eigene Faxnummer (Absenderkennung), z. B. "+4930123456".
-    sender_number: str = ""
-    #: Absendername in der Faxkopfzeile.
-    sender_name: str = "mail2fax"
-    verify_tls: bool = False
-    timeout: int = Field(default=180, ge=10, le=900)
-    #: Pfad des Upload-Endpunkts relativ zur Basis-URL.
-    endpoint: str = "/cgi-bin/luacgi_notimeout"
-    #: Abbildung der Formularfelder; bei abweichendem FRITZ!OS anpassbar.
-    form_fields: dict[str, str] = Field(
-        default_factory=lambda: {
-            "sid": "sid",
-            "page": "page",
-            "page_value": "fx_send",
-            "apply": "apply",
-            "recipient": "SendFax:settings/recipient",
-            "sender_number": "SendFax:settings/sender_number",
-            "sender_name": "SendFax:settings/sender_name",
-            "subject": "SendFax:settings/subject",
-            "file": "UploadFax",
-        }
-    )
 
 
 class HylafaxConfig(BaseModel):
@@ -222,9 +189,7 @@ class SipConfig(BaseModel):
 class FaxConfig(BaseModel):
     """Auswahl und Parameter des Faxversands."""
 
-    backend: Literal[
-        "sip", "fritzbox", "hylafax", "mailgateway", "command", "dummy"
-    ] = "dummy"
+    backend: Literal["sip", "hylafax", "mailgateway", "command", "dummy"] = "dummy"
     #: Anzahl der Zustellversuche insgesamt (inkl. Erstversuch).
     max_attempts: int = Field(default=3, ge=1, le=10)
     #: Wartezeit zwischen den Versuchen in Sekunden (wird verdoppelt).
@@ -233,10 +198,28 @@ class FaxConfig(BaseModel):
     dry_run: bool = False
 
     sip: SipConfig = Field(default_factory=SipConfig)
-    fritzbox: FritzboxConfig = Field(default_factory=FritzboxConfig)
     hylafax: HylafaxConfig = Field(default_factory=HylafaxConfig)
     mailgateway: MailGatewayConfig = Field(default_factory=MailGatewayConfig)
     command: CommandConfig = Field(default_factory=CommandConfig)
+
+    @field_validator("backend", mode="before")
+    @classmethod
+    def _migrate_removed_backends(cls, value: Any) -> Any:
+        """Faengt Werte aus aelteren Fassungen ab.
+
+        Das Backend "fritzbox" steuerte die Weboberflaeche der FRITZ!Box fern
+        und wurde durch "sip" ersetzt. Eine bestehende Konfiguration soll
+        deswegen nicht den Dienststart verhindern - sie wird auf den
+        Testbetrieb gesetzt, damit nichts unbeabsichtigt versendet wird.
+        """
+        if str(value).strip().lower() == "fritzbox":
+            LOGGER.warning(
+                "Das Fax-Backend 'fritzbox' gibt es nicht mehr. Bitte in der "
+                "Weboberflaeche auf 'SIP' umstellen (siehe docs/FAX-BACKENDS.md). "
+                "Bis dahin ist der Testbetrieb aktiv - es werden keine Faxe versendet."
+            )
+            return "dummy"
+        return value
 
 
 class ContentConfig(BaseModel):

@@ -26,10 +26,30 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Geändert
 
-- Das Backend „FRITZ!Box über die Weboberfläche" bleibt erhalten, ist aber
-  nicht mehr der empfohlene Weg für eine FRITZ!Box
 - `ensure_dirs` überschreibt die Rechte bestehender Verzeichnisse nicht mehr;
   der SIP-Versand braucht ein Spool-Verzeichnis mit der Gruppe `asterisk`
+- Die Weboberfläche ist jetzt auch **vor** der Ersteinrichtung geschlossen:
+  Solange kein Passwort gesetzt ist, führt jeder Aufruf zum
+  Einrichtungsdialog. Zuvor waren in diesem Zustand alle Seiten und die
+  Schnittstelle offen.
+- GitHub Actions auf aktuelle Fassungen gehoben (Node-20-Abkündigung)
+
+### Entfernt
+
+- **Backend „FRITZ!Box über die Weboberfläche".** Es steuerte die
+  Weboberfläche des Routers fern; AVM bietet dafür keine dokumentierte
+  Schnittstelle, und jedes FRITZ!OS-Update konnte den Weg brechen. Für die
+  FRITZ!Box ist stattdessen **SIP** vorgesehen.
+  Bestehende Konfigurationen mit `backend: fritzbox` starten weiterhin,
+  schalten aber auf den Testbetrieb um und weisen im Protokoll darauf hin,
+  damit nichts unbeabsichtigt versendet wird.
+
+### Behoben
+
+- Tests schlugen unter Python 3.13 fehl: `threading.Thread` belegt dort
+  selbst das Attribut `_handle`, was die gleichnamige Methode des
+  Test-Servers verdeckte
+- shellcheck beanstandete `A && B || C` in den Installationsskripten
 
 ## [1.0.0] – 2026-09-21
 

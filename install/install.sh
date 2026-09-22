@@ -78,7 +78,9 @@ ok "mail2fax $("${VENV}/bin/mail2fax" --version | awk '{print $2}') installiert"
 install -d "${APP_DIR}/doc"
 [ -f "${SOURCE_DIR}/config/config.example.yaml" ] && \
   install -m 0644 "${SOURCE_DIR}/config/config.example.yaml" "${APP_DIR}/doc/config.example.yaml"
-[ -d "${SOURCE_DIR}/docs" ] && cp -r "${SOURCE_DIR}/docs/." "${APP_DIR}/doc/" 2>/dev/null || true
+if [ -d "${SOURCE_DIR}/docs" ]; then
+  cp -r "${SOURCE_DIR}/docs/." "${APP_DIR}/doc/" 2>/dev/null || true
+fi
 
 # --- Konfiguration ---------------------------------------------------------
 ADMIN_PASSWORD=""

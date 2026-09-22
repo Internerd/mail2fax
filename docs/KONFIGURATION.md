@@ -54,7 +54,7 @@ Mailschleifen entstehen.
 
 | Schlüssel | Vorgabe | Bedeutung |
 |---|---|---|
-| `backend` | `dummy` | `sip`, `fritzbox`, `hylafax`, `mailgateway`, `command`, `dummy` |
+| `backend` | `dummy` | `sip`, `hylafax`, `mailgateway`, `command`, `dummy` |
 | `max_attempts` | `3` | Zustellversuche insgesamt |
 | `retry_delay` | `300` | Sekunden bis zur Wiederholung; verdoppelt sich je Versuch |
 | `dry_run` | `false` | `true` = annehmen, aber nicht senden |
@@ -83,8 +83,13 @@ Nach jeder Änderung an diesen Werten muss die Asterisk-Konfiguration neu
 geschrieben werden – über die Schaltfläche in der Weboberfläche oder mit
 `mail2fax sip-apply`.
 
-Die Unterabschnitte `fritzbox`, `hylafax`, `mailgateway` und `command` sind in
+Die Unterabschnitte `hylafax`, `mailgateway` und `command` sind in
 [FAX-BACKENDS.md](FAX-BACKENDS.md) beschrieben.
+
+> Der Wert `fritzbox` aus älteren Fassungen wird beim Laden auf `dummy`
+> (Testbetrieb) abgebildet, damit der Dienst startet und nichts
+> unbeabsichtigt versendet wird. Ein etwaiger `fax.fritzbox`-Abschnitt in
+> der Datei wird ignoriert und kann entfernt werden.
 
 ## `content` – was gefaxt wird
 

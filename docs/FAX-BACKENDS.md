@@ -9,15 +9,17 @@ was bei Ihnen vorhanden ist.
 | [Fax per E-Mail](#fax-per-e-mail) | Anbieter und Telefonanlagen mit Mail-Schnittstelle | hoch | gering |
 | [HylaFAX](#hylafax) | ISDN-/T.38-Gateways, eigene Faxserver | hoch | mittel |
 | [Externes Kommando](#externes-kommando) | Asterisk, 3CX, CapiSuite, eigene Skripte | hoch | mittel |
-| [FRITZ!Box über die Weboberfläche](#fritzbox-über-die-weboberfläche) | AVM-Router, wenn SIP ausscheidet | eingeschränkt¹ | gering |
 | [Testbetrieb](#testbetrieb) | Inbetriebnahme, keine echte Zustellung | – | – |
 
-¹ AVM bietet für den Faxversand keine dokumentierte Schnittstelle. Siehe unten.
-
-> **Für eine FRITZ!Box ist [SIP](#sip--fritzbox-oder-telefonanlage) der
-> empfohlene Weg.** Dabei telefoniert mail2fax regulär, statt die
-> Weboberfläche des Routers fernzusteuern – das bleibt von FRITZ!OS-Updates
-> unberührt und funktioniert genauso an anderen Telefonanlagen.
+> **Für eine FRITZ!Box ist [SIP](#sip--fritzbox-oder-telefonanlage) der Weg.**
+> mail2fax meldet sich als IP-Telefon an und telefoniert regulär.
+>
+> Ein früheres Backend steuerte stattdessen die Weboberfläche der FRITZ!Box
+> fern. Da AVM dafür keine dokumentierte Schnittstelle anbietet und jedes
+> FRITZ!OS-Update diesen Weg brechen konnte, **wurde es entfernt.** Steht in
+> einer bestehenden Konfiguration noch `backend: fritzbox`, schaltet mail2fax
+> beim Start auf den Testbetrieb um und weist im Protokoll darauf hin –
+> stellen Sie dann auf **SIP** um.
 
 ---
 
@@ -267,82 +269,6 @@ Diese Anlagen bieten meist eine der folgenden Möglichkeiten:
 * eine **E-Mail-Schnittstelle** → besser das Backend *Fax per E-Mail* nutzen,
 * ein **CLI-Werkzeug** oder eine **HTTP-API** → Backend *Externes Kommando*
   mit einem kleinen Wrapper-Skript wie oben.
-
----
-
-## FRITZ!Box über die Weboberfläche
-
-> **Erst prüfen, ob [SIP](#sip--fritzbox-oder-telefonanlage) infrage kommt.**
-> Dieser Weg hier steuert die Weboberfläche der FRITZ!Box fern und kann
-> durch ein FRITZ!OS-Update brechen. Er bleibt als Rückfallebene, wenn
-> sich kein IP-Telefon einrichten lässt.
-
-### Voraussetzungen
-
-1. In der FRITZ!Box unter **Telefonie → Telefoniegeräte** eine
-   **Faxfunktion** einrichten und ihr eine Rufnummer zuweisen.
-2. Unter **System → FRITZ!Box-Benutzer** einen Benutzer mit der Berechtigung
-   **„VoIP-Telefonie/Fax"** anlegen. Verwenden Sie nicht das
-   Administratorkonto.
-3. Diese Zugangsdaten in mail2fax unter *Fax → AVM FRITZ!Box* eintragen,
-   zusammen mit der **eigenen Faxnummer** als Absenderkennung
-   (z. B. `+49301234567`).
-
-### Wie die Anbindung funktioniert
-
-mail2fax meldet sich mit dem von AVM dokumentierten
-Challenge-Response-Verfahren an (PBKDF2-SHA256 ab FRITZ!OS 7.24, davor MD5)
-und übergibt das PDF anschließend über **dieselbe Schnittstelle, die auch die
-Weboberfläche der FRITZ!Box benutzt**.
-
-### Einschränkung – bitte lesen
-
-**AVM bietet für den Faxversand keine dokumentierte, zugesicherte
-Schnittstelle.** Ein FRITZ!OS-Update kann den Aufbau der Weboberfläche
-verändern und den Versand dadurch unterbrechen. mail2fax hält Endpunkt und
-Formularfelder deshalb in der Konfiguration – sie lassen sich ohne
-Codeänderung anpassen:
-
-```yaml
-fax:
-  fritzbox:
-    endpoint: /cgi-bin/luacgi_notimeout
-    form_fields:
-      sid: sid
-      page: page
-      page_value: fx_send
-      apply: apply
-      recipient: 'SendFax:settings/recipient'
-      sender_number: 'SendFax:settings/sender_number'
-      sender_name: 'SendFax:settings/sender_name'
-      subject: 'SendFax:settings/subject'
-      file: UploadFax
-```
-
-So ermitteln Sie die passenden Werte bei einem Bruch:
-
-1. Weboberfläche der FRITZ!Box im Browser öffnen, *Telefonie → Fax*.
-2. Entwicklerwerkzeuge öffnen (F12), Reiter **Netzwerkanalyse**.
-3. Ein Fax von Hand senden.
-4. Die abgeschickte `POST`-Anfrage ansehen: Der **Pfad** gehört nach
-   `endpoint`, die **Formularfeldnamen** nach `form_fields`.
-5. `systemctl restart mail2fax`, danach ein Testfax senden.
-
-Wenn Sie den Faxversand ohne solche Anpassungen dauerhaft stabil brauchen,
-sind *Fax per E-Mail*, *HylaFAX* oder *Externes Kommando* die bessere Wahl.
-
-### Fehlersuche
-
-| Meldung | Ursache |
-|---|---|
-| `Anmeldung an der FRITZ!Box fehlgeschlagen` | Benutzername/Passwort falsch oder Berechtigung „VoIP-Telefonie/Fax" fehlt |
-| `FRITZ!Box sperrt die Anmeldung noch für N Sekunden` | Zu viele Fehlversuche – abwarten |
-| `FRITZ!Box unter … nicht erreichbar` | Adresse prüfen; aus dem Container heraus testen: `pct exec <CTID> -- curl -sI http://fritz.box` |
-| `FRITZ!Box meldet einen Fehler` | Faxfunktion nicht eingerichtet oder Formularfelder passen nicht mehr (siehe oben) |
-| `Für die FRITZ!Box ist keine eigene Faxnummer hinterlegt` | Absenderkennung eintragen |
-
-Bei HTTPS mit selbstsigniertem Zertifikat die Zertifikatsprüfung abschalten
-(Schalter im Formular).
 
 ---
 

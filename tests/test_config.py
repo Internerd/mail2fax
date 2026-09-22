@@ -132,3 +132,27 @@ def test_normalised_prefix_blocks_premium_number():
     assert number.e164 == "+49900123456"
     with pytest.raises(RuleError, match="gesperrt"):
         check_number_allowed(number, config.security)
+
+
+def test_removed_fritzbox_backend_falls_back_to_testbetrieb():
+    """Eine alte Konfiguration darf den Dienststart nicht verhindern.
+
+    Das Backend "fritzbox" steuerte die Weboberflaeche des Routers fern und
+    wurde durch "sip" ersetzt. Bestehende Konfigurationen landen im
+    Testbetrieb, damit nichts unbeabsichtigt versendet wird.
+    """
+    config = AppConfig.model_validate(
+        {"fax": {"backend": "fritzbox", "fritzbox": {"url": "http://fritz.box"}}}
+    )
+    assert config.fax.backend == "dummy"
+    assert not hasattr(config.fax, "fritzbox")
+
+
+def test_removed_backend_is_matched_case_insensitively():
+    assert AppConfig.model_validate({"fax": {"backend": "FritzBox"}}).fax.backend == "dummy"
+
+
+def test_unknown_backend_still_raises():
+    """Ein Tippfehler soll weiterhin auffallen und nicht stillschweigend wirken."""
+    with pytest.raises(Exception, match="backend"):
+        AppConfig.model_validate({"fax": {"backend": "gibtsnicht"}})

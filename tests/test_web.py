@@ -427,3 +427,76 @@ def test_sip_apply_reports_write_error(angemeldet, config_file, monkeypatch):
         data=basis_fax_formular(sip_username="620", sip_password="x"),
     )
     assert "sip-setup.sh" in response.text
+
+
+# -- Zugriffsschutz vor der Ersteinrichtung ---------------------------------
+
+
+@pytest.fixture
+def ohne_passwort(tmp_path, monkeypatch):
+    """Eine Installation, bei der noch kein Passwort gesetzt wurde."""
+    data_dir = tmp_path / "daten-offen"
+    data_dir.mkdir()
+    monkeypatch.setattr("mail2fax.paths.DATA_DIR", data_dir)
+    monkeypatch.setattr("mail2fax.paths.SPOOL_DIR", data_dir / "spool")
+    monkeypatch.setattr("mail2fax.paths.DB_PATH", data_dir / "offen.db")
+    path = tmp_path / "offen.yaml"
+    save_config(AppConfig(), path)
+    webapp.sessions.clear()
+    with TestClient(create_app(path, start_worker=False), client=("127.0.0.1", 50000)) as client:
+        yield client
+
+
+@pytest.mark.parametrize(
+    "pfad",
+    [
+        "/", "/auftraege", "/protokoll", "/api/status",
+        "/einstellungen/mail", "/einstellungen/fax", "/einstellungen/sicherheit",
+    ],
+)
+def test_no_page_is_open_before_a_password_is_set(ohne_passwort, pfad):
+    """Vor der Ersteinrichtung darf keine Seite Daten preisgeben."""
+    response = ohne_passwort.get(pfad, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/einrichtung"
+
+
+def test_settings_cannot_be_changed_before_setup(ohne_passwort, tmp_path):
+    """Auch schreibende Zugriffe muessen vor der Einrichtung gesperrt sein."""
+    response = ohne_passwort.post(
+        "/einstellungen/sicherheit",
+        data={"sender_whitelist": "angreifer@example.org", "allowed_networks": "0.0.0.0/0"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/einrichtung"
+    assert load_config(tmp_path / "offen.yaml").security.sender_whitelist == []
+
+
+def test_setup_page_stays_reachable(ohne_passwort):
+    assert ohne_passwort.get("/einrichtung").status_code == 200
+
+
+# -- Passwortschutz insgesamt ----------------------------------------------
+
+
+def test_every_page_requires_login(client):
+    """Mit gesetztem Passwort fuehrt jeder Aufruf ohne Sitzung zur Anmeldung."""
+    for pfad in ("/", "/auftraege", "/protokoll", "/api/status",
+                 "/einstellungen/mail", "/einstellungen/fax", "/einstellungen/sicherheit"):
+        response = client.get(pfad, follow_redirects=False)
+        assert response.status_code == 303, pfad
+        assert response.headers["location"] == "/login", pfad
+
+
+def test_password_is_never_stored_in_plain_text(angemeldet, config_file):
+    inhalt = config_file.read_text(encoding="utf-8")
+    assert PASSWORT not in inhalt
+    assert load_config(config_file).web.password_hash.startswith("pbkdf2_sha256$")
+
+
+def test_session_cookie_is_protected(client):
+    response = client.post("/login", data={"password": PASSWORT}, follow_redirects=False)
+    cookie = response.headers["set-cookie"].lower()
+    assert "httponly" in cookie
+    assert "samesite=strict" in cookie

@@ -57,7 +57,9 @@ fi
 install -d "${APP_DIR}/doc"
 [ -f "${SOURCE_DIR}/config/config.example.yaml" ] && \
   install -m 0644 "${SOURCE_DIR}/config/config.example.yaml" "${APP_DIR}/doc/config.example.yaml"
-[ -d "${SOURCE_DIR}/docs" ] && cp -r "${SOURCE_DIR}/docs/." "${APP_DIR}/doc/" 2>/dev/null || true
+if [ -d "${SOURCE_DIR}/docs" ]; then
+  cp -r "${SOURCE_DIR}/docs/." "${APP_DIR}/doc/" 2>/dev/null || true
+fi
 
 chown -R mail2fax:mail2fax "${CONFIG_DIR}" "${DATA_DIR}" "${APP_DIR}"
 chmod 0750 "${CONFIG_DIR}" "${DATA_DIR}"

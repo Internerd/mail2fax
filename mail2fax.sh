@@ -199,9 +199,12 @@ advanced_settings() {
     var_disk="$(( var_disk < 8 ? 8 : var_disk ))"
   fi
 
-  whiptail --backtitle "${APP}" --title "Autostart" \
-    --yesno "Container beim Start des Hosts automatisch starten?" 9 60 \
-    && var_start_on_boot="1" || var_start_on_boot="0"
+  if whiptail --backtitle "${APP}" --title "Autostart" \
+      --yesno "Container beim Start des Hosts automatisch starten?" 9 60; then
+    var_start_on_boot="1"
+  else
+    var_start_on_boot="0"
+  fi
 }
 
 # --- Vorlage ---------------------------------------------------------------

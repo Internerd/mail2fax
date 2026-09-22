@@ -8,7 +8,6 @@ import pytest
 
 from mail2fax.config import AppConfig
 from mail2fax.fax import BACKENDS, FaxError, get_backend
-from mail2fax.fax.fritzbox import FritzboxSession
 from mail2fax.render import text_to_pdf
 from mail2fax.rules import Number
 
@@ -19,7 +18,7 @@ def document(tmp_path):
 
 
 def test_registry_covers_all_backends():
-    assert set(BACKENDS) == {"sip", "fritzbox", "hylafax", "mailgateway", "command", "dummy"}
+    assert set(BACKENDS) == {"sip", "hylafax", "mailgateway", "command", "dummy"}
 
 
 def test_unknown_backend_raises():
@@ -32,51 +31,6 @@ def test_unknown_backend_raises():
 def test_dummy_backend_succeeds(document):
     result = get_backend(AppConfig()).send(Number("+49301234567"), [document])
     assert result.success
-
-
-# -- FRITZ!Box: Challenge-Response ------------------------------------------
-
-
-def test_fritzbox_pbkdf2_response_format():
-    challenge = "2$10000$5A1711$2000$5A1722"
-    response = FritzboxSession._response_pbkdf2(challenge, "geheim")
-    salt2, digest = response.split("$")
-    assert salt2 == "5A1722"
-    assert len(digest) == 64  # SHA-256 als Hex
-
-
-def test_fritzbox_pbkdf2_is_deterministic():
-    challenge = "2$10000$5A1711$2000$5A1722"
-    assert FritzboxSession._response_pbkdf2(challenge, "a") == FritzboxSession._response_pbkdf2(challenge, "a")
-    assert FritzboxSession._response_pbkdf2(challenge, "a") != FritzboxSession._response_pbkdf2(challenge, "b")
-
-
-def test_fritzbox_pbkdf2_rejects_malformed_challenge():
-    with pytest.raises(FaxError):
-        FritzboxSession._response_pbkdf2("2$kaputt", "geheim")
-
-
-def test_fritzbox_md5_response_matches_avm_specification():
-    # Beispiel aus der AVM-Dokumentation "Session-ID" (Challenge 1234567z,
-    # Passwort "äbc"): erwartete Antwort laut Spezifikation.
-    assert FritzboxSession._response_md5("1234567z", "äbc") == "1234567z-9e224a41eeefa284df7bb0f26c2913e2"
-
-
-def test_fritzbox_requires_password():
-    config = AppConfig()
-    config.fax.backend = "fritzbox"
-    config.fax.fritzbox.password = ""
-    with pytest.raises(FaxError, match="kein Passwort"):
-        get_backend(config).test()
-
-
-def test_fritzbox_requires_sender_number(document):
-    config = AppConfig()
-    config.fax.backend = "fritzbox"
-    config.fax.fritzbox.password = "geheim"
-    config.fax.fritzbox.sender_number = ""
-    with pytest.raises(FaxError, match="Faxnummer"):
-        get_backend(config).send(Number("+49301234567"), [document])
 
 
 # -- Kommando ---------------------------------------------------------------

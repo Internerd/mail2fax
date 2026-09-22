@@ -117,47 +117,6 @@
     </p>
   </details>
 
-  <details class="card" {{ 'open' if config.fax.backend == 'fritzbox' }}>
-    <summary>AVM FRITZ!Box (über die Weboberfläche des Geräts)</summary>
-    <p class="hint">
-      Dieser Weg steuert die Weboberfläche der FRITZ!Box fern und kann durch ein
-      FRITZ!OS-Update brechen. Für die FRITZ!Box ist in der Regel das
-      Backend <strong>SIP</strong> die bessere Wahl.
-    </p>
-    <div class="row">
-      <div>
-        <label for="fb_url">Adresse</label>
-        <input type="text" id="fb_url" name="fb_url" value="{{ config.fax.fritzbox.url }}" placeholder="http://fritz.box">
-      </div>
-      <div>
-        <label for="fb_username">Benutzername</label>
-        <input type="text" id="fb_username" name="fb_username" value="{{ config.fax.fritzbox.username }}" autocomplete="off">
-      </div>
-      <div>
-        <label for="fb_password">Passwort</label>
-        <input type="password" id="fb_password" name="fb_password" placeholder="{{ '•••••••• (unverändert)' if config.fax.fritzbox.password else 'Passwort' }}" autocomplete="off">
-      </div>
-    </div>
-    <div class="row">
-      <div>
-        <label for="fb_sender_number">Eigene Faxnummer (Absenderkennung)</label>
-        <input type="text" id="fb_sender_number" name="fb_sender_number" value="{{ config.fax.fritzbox.sender_number }}" placeholder="+49301234567">
-      </div>
-      <div>
-        <label for="fb_sender_name">Absendername</label>
-        <input type="text" id="fb_sender_name" name="fb_sender_name" value="{{ config.fax.fritzbox.sender_name }}">
-      </div>
-    </div>
-    <label class="inline">
-      <input type="checkbox" name="fb_verify_tls" {{ 'checked' if config.fax.fritzbox.verify_tls }}>
-      TLS-Zertifikat prüfen (bei HTTPS mit selbstsigniertem Zertifikat abschalten)
-    </label>
-    <p class="hint">
-      Voraussetzung: In der FRITZ!Box ist unter „Telefonie → Telefoniegeräte“ eine
-      Faxfunktion eingerichtet und der Benutzer besitzt die Berechtigung „VoIP-Telefonie/Fax“.
-    </p>
-  </details>
-
   <details class="card" {{ 'open' if config.fax.backend == 'hylafax' }}>
     <summary>HylaFAX</summary>
     <div class="row">

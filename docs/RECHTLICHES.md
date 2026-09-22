@@ -146,10 +146,7 @@ Ghostscript – etwa *Fax per E-Mail*.
   keiner Verbindung zu diesen Unternehmen und wird von ihnen weder
   unterstützt noch geprüft. Die Nennung erfolgt ausschließlich beschreibend.
 * Die Anbindung über **SIP** nutzt die dafür vorgesehene Funktion der
-  FRITZ!Box (IP-Telefon) und ist insoweit unproblematisch. Das ältere
-  Backend „FRITZ!Box über die Weboberfläche" steuert dagegen die
-  Weboberfläche des Geräts fern; prüfen Sie eigenverantwortlich, ob dies mit
-  den Nutzungsbedingungen Ihres Geräts vereinbar ist.
+  FRITZ!Box (IP-Telefon) und ist insoweit unproblematisch.
 
 ## 10. Einsatz im Unternehmen
 

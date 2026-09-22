@@ -56,7 +56,7 @@ Bausteine für Ihren Eintrag:
 
 ## 4. Auftragsverarbeitung (Art. 28 DSGVO)
 
-* **FRITZ!Box, HylaFAX, eigenes Kommando (lokal):** Die Verarbeitung bleibt in
+* **SIP, HylaFAX, eigenes Kommando (lokal):** Die Verarbeitung bleibt in
   Ihrer Infrastruktur. Ein Auftragsverarbeitungsvertrag ist insoweit nicht
   erforderlich – wohl aber gegenüber einem etwaigen externen IT-Dienstleister.
 * **Fax per E-Mail über einen externen Anbieter:** Die Faxinhalte verlassen

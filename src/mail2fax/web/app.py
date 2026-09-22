@@ -134,10 +134,17 @@ def create_app(config_path: Path | None = None, *, start_worker: bool = True) ->
     # -- Anmeldung ---------------------------------------------------------
 
     def require_login(request: Request) -> None:
+        """Laesst nur angemeldete Zugriffe durch.
+
+        Ist noch kein Passwort gesetzt, ist ausschliesslich der
+        Einrichtungsdialog erreichbar - keine andere Seite und auch nicht die
+        Schnittstelle. So steht die Oberflaeche zu keinem Zeitpunkt offen.
+        """
         config = current_config()
         if not config.web.password_hash:
-            # Erstinbetriebnahme: Der Einrichtungsdialog ist ohne Anmeldung erreichbar.
-            return
+            raise HTTPException(
+                status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/einrichtung"}
+            )
         session = sessions.get(request.cookies.get(SESSION_COOKIE))
         if session is None:
             raise HTTPException(
@@ -243,16 +250,13 @@ def create_app(config_path: Path | None = None, *, start_worker: bool = True) ->
 
     @app.get("/", response_class=HTMLResponse, dependencies=[Depends(require_login)])
     async def dashboard(request: Request) -> Response:
-        config = current_config()
-        if not config.web.password_hash:
-            return RedirectResponse("/einrichtung", status_code=303)
         return render(
             request,
             "dashboard.html",
             stats=storage.stats(),
             jobs=storage.list_jobs(limit=10),
             worker=worker.state.snapshot(),
-            warnings=_configuration_warnings(config),
+            warnings=_configuration_warnings(current_config()),
         )
 
     @app.post("/pruefen", dependencies=[Depends(require_login)])
@@ -382,15 +386,6 @@ def create_app(config_path: Path | None = None, *, start_worker: bool = True) ->
         fax.max_attempts = max(1, min(10, _as_int(form.get("max_attempts"), fax.max_attempts)))
         fax.retry_delay = max(10, min(86400, _as_int(form.get("retry_delay"), fax.retry_delay)))
         fax.dry_run = form.get("dry_run") == "on"
-
-        box = fax.fritzbox
-        box.url = str(form.get("fb_url", "")).strip() or box.url
-        box.username = str(form.get("fb_username", "")).strip()
-        if str(form.get("fb_password", "")):
-            box.password = str(form.get("fb_password"))
-        box.sender_number = str(form.get("fb_sender_number", "")).strip()
-        box.sender_name = str(form.get("fb_sender_name", "")).strip() or "mail2fax"
-        box.verify_tls = form.get("fb_verify_tls") == "on"
 
         hyla = fax.hylafax
         hyla.binary = str(form.get("hy_binary", "")).strip() or hyla.binary
