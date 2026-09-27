@@ -204,7 +204,7 @@ def enqueue(config: AppConfig, storage: Storage, message: MailMessage) -> Job:
             backend=config.fax.backend,
         )
         storage.log_event(f"Abgelehnt: {error}", job_id=job.id, level="warning")
-        notify.notify_failure(config, sender_address, "", message.subject, str(error))
+        notify.report_rejection(config, sender_address, message.subject, str(error))
         return job
 
     job = storage.create_job(
@@ -240,6 +240,7 @@ def send_job(config: AppConfig, storage: Storage, job: Job) -> bool:
         _fail(config, storage, job, reason, permanent=True)
         return False
 
+    result = None
     try:
         if config.fax.dry_run:
             detail = "Testbetrieb (dry-run) - es wurde nichts gesendet"
@@ -257,10 +258,35 @@ def send_job(config: AppConfig, storage: Storage, job: Job) -> bool:
         _fail(config, storage, job, f"Unerwarteter Fehler: {error}", attempt=attempt)
         return False
 
-    storage.update_job(job.id, status=STATUS_SENT, error=None)
-    storage.log_event(f"Versendet: {detail}", job_id=job.id)
-    LOGGER.info("Auftrag #%s versendet an %s", job.id, job.number)
-    notify.notify_success(config, job.sender, job.number, job.subject, job.pages or 0)
+    felder: dict[str, object] = {"status": STATUS_SENT, "error": None}
+    if result is not None:
+        felder.update(
+            confirmed=1 if result.confirmed else 0,
+            pages_sent=result.pages_sent,
+            rate=result.rate,
+            resolution=result.resolution,
+            remote_station=result.remote_station,
+            duration=result.duration,
+        )
+    storage.update_job(job.id, **felder)
+
+    bestaetigt = bool(result and result.confirmed)
+    storage.log_event(
+        f"{'Uebertragung bestaetigt' if bestaetigt else 'Uebergeben (ohne Quittung)'}: {detail}",
+        job_id=job.id,
+    )
+    LOGGER.info(
+        "Auftrag #%s an %s %s",
+        job.id,
+        job.number,
+        "uebertragen und quittiert" if bestaetigt else "uebergeben (keine Quittung)",
+    )
+
+    aktuell = storage.get_job(job.id) or job
+    if notify.report_transmission(config, aktuell):
+        storage.update_job(job.id, reported_at=time.time())
+        storage.log_event("Sendebericht an den Absender versendet", job_id=job.id)
+
     if config.delete_documents_after_send:
         cleanup_documents(job)
     return True
@@ -282,7 +308,10 @@ def _fail(
         storage.update_job(job.id, status=STATUS_FAILED, error=reason)
         storage.log_event(f"Endgueltig fehlgeschlagen: {reason}", job_id=job.id, level="error")
         LOGGER.error("Auftrag #%s endgueltig fehlgeschlagen: %s", job.id, reason)
-        notify.notify_failure(config, job.sender, job.number, job.subject, reason)
+        aktuell = storage.get_job(job.id) or job
+        if notify.report_failure(config, aktuell, reason=reason, final=True):
+            storage.update_job(job.id, reported_at=time.time())
+            storage.log_event("Fehlerbericht an den Absender versendet", job_id=job.id)
         return
 
     delay = config.fax.retry_delay * (2 ** (attempts - 1))

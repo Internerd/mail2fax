@@ -500,3 +500,81 @@ def test_session_cookie_is_protected(client):
     cookie = response.headers["set-cookie"].lower()
     assert "httponly" in cookie
     assert "samesite=strict" in cookie
+
+
+# -- Sendebericht in der Oberflaeche ---------------------------------------
+
+
+def test_report_option_is_saved(angemeldet, config_file):
+    angemeldet.post(
+        "/einstellungen/mail",
+        data={"imap_port": "993", "imap_security": "ssl", "smtp_port": "587",
+              "smtp_security": "starttls", "smtp_enabled": "on",
+              "smtp_notify_sender": "on", "smtp_report_unconfirmed": "on"},
+    )
+    smtp = load_config(config_file).smtp
+    assert smtp.notify_sender is True
+    assert smtp.report_unconfirmed is True
+
+    angemeldet.post(
+        "/einstellungen/mail",
+        data={"imap_port": "993", "imap_security": "ssl", "smtp_port": "587",
+              "smtp_security": "starttls", "smtp_enabled": "on", "smtp_notify_sender": "on"},
+    )
+    assert load_config(config_file).smtp.report_unconfirmed is False
+
+
+def test_job_detail_shows_confirmed_transmission(angemeldet, client):
+    storage = client.app.state.storage
+    job = storage.create_job(sender="chef@example.com", subject="x", number="+49301234567")
+    storage.update_job(
+        job.id, status="sent", confirmed=1, pages_sent=2, rate="14400",
+        resolution="204 x 196 dpi (fein)", remote_station="+4930999888", duration=48.2,
+    )
+    seite = angemeldet.get(f"/auftraege/{job.id}").text
+    assert "quittiert" in seite
+    assert "+4930999888" in seite
+    assert "14400 bit/s" in seite
+    assert "204 x 196 dpi (fein)" in seite
+    assert "48 s" in seite
+
+
+def test_job_detail_marks_missing_confirmation(angemeldet, client):
+    storage = client.app.state.storage
+    job = storage.create_job(sender="chef@example.com", subject="x", number="+49301234567")
+    storage.update_job(job.id, status="sent", confirmed=0)
+    seite = angemeldet.get(f"/auftraege/{job.id}").text
+    assert "nicht quittiert" in seite
+    assert "nicht belegt" in seite
+
+
+def test_job_list_shows_confirmation_column(angemeldet, client):
+    storage = client.app.state.storage
+    bestaetigt = storage.create_job(sender="a@example.com", subject="ja", number="+4930")
+    storage.update_job(bestaetigt.id, status="sent", confirmed=1)
+    offen = storage.create_job(sender="a@example.com", subject="nein", number="+4931")
+    storage.update_job(offen.id, status="sent", confirmed=0)
+
+    seite = angemeldet.get("/auftraege").text
+    assert "Quittung" in seite
+    assert "bestätigt" in seite
+
+
+def test_dashboard_warns_when_backend_cannot_confirm(angemeldet, config_file):
+    config = load_config(config_file)
+    config.smtp.enabled = True
+    config.smtp.notify_sender = True
+    config.fax.backend = "mailgateway"
+    save_config(config, config_file)
+    seite = angemeldet.get("/").text
+    assert "keine Quittung der Gegenstelle" in seite
+
+
+def test_dashboard_has_no_warning_for_sip(angemeldet, config_file):
+    config = load_config(config_file)
+    config.smtp.enabled = True
+    config.smtp.notify_sender = True
+    config.fax.backend = "sip"
+    save_config(config, config_file)
+    seite = angemeldet.get("/").text
+    assert "keine Quittung der Gegenstelle" not in seite

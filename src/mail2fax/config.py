@@ -70,8 +70,13 @@ class SmtpConfig(BaseModel):
     username: str = ""
     password: str = ""
     from_address: str = ""
-    #: Absender der Ursprungsmail ueber Erfolg/Misserfolg informieren.
+    #: Sende- und Fehlerberichte an den Absender schicken.
+    #: Berichte gehen ausschliesslich an Adressen der Absender-Whitelist.
     notify_sender: bool = True
+    #: Auch dann berichten, wenn der Versandweg keine Quittung der Gegenstelle
+    #: liefert. Der Bericht weist das dann ausdruecklich aus. Abgeschaltet
+    #: erhaelt der Absender nur Post, wenn die Uebertragung bestaetigt ist.
+    report_unconfirmed: bool = True
     #: Zusaetzliche Adresse fuer Fehlermeldungen (optional).
     admin_address: str = ""
     verify_tls: bool = True
@@ -125,6 +130,10 @@ class CommandConfig(BaseModel):
     timeout: int = Field(default=600, ge=10, le=3600)
     #: Zusaetzliche Umgebungsvariablen fuer das Kommando.
     env: dict[str, str] = Field(default_factory=dict)
+    #: Nur einschalten, wenn das Kommando erst zurueckkehrt, nachdem die
+    #: Gegenstelle den Empfang quittiert hat. Dann darf der Sendebericht die
+    #: Uebertragung als bestaetigt ausweisen. Im Zweifel abgeschaltet lassen.
+    confirms_delivery: bool = False
 
 
 class SipConfig(BaseModel):

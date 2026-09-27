@@ -38,7 +38,13 @@ smtp:
   username: fax@example.com
   password: BITTE-AENDERN
   from_address: fax@example.com
-  notify_sender: true            # Absender ueber Erfolg/Misserfolg informieren
+  # Sende- und Fehlerberichte an den Absender. Berichte gehen
+  # ausschliesslich an Adressen der Absender-Whitelist.
+  notify_sender: true
+  # Auch dann berichten, wenn der Versandweg keine Quittung der Gegenstelle
+  # liefert. Der Bericht sagt das dann ausdruecklich. Abgeschaltet erhaelt der
+  # Absender nur Post, wenn die Uebertragung bestaetigt ist.
+  report_unconfirmed: true
   admin_address: admin@example.com
   verify_tls: true
 
@@ -111,6 +117,10 @@ fax:
     #  - '{file}'
     timeout: 600
     env: {}
+    # Nur einschalten, wenn das Kommando erst zurueckkehrt, nachdem die
+    # Gegenstelle den Empfang quittiert hat. Dann darf der Sendebericht die
+    # Uebertragung als bestaetigt ausweisen.
+    confirms_delivery: false
 
 # --- Was wird gefaxt -------------------------------------------------------
 content:

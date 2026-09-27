@@ -247,3 +247,134 @@ def test_dry_run_does_not_call_backend(config, storage, spool, monkeypatch):
 
     monkeypatch.setattr("mail2fax.fax.dummy.DummyBackend.send", unexpected)
     assert send_job(config, storage, job) is True
+
+
+# -- Berichte an den Absender ----------------------------------------------
+
+
+@pytest.fixture
+def postfach(monkeypatch):
+    """Faengt Berichte ab, die die Verarbeitungskette ausloest."""
+    from mail2fax import notify
+
+    gesendet: list[dict] = []
+    monkeypatch.setattr(
+        notify,
+        "send_mail",
+        lambda _smtp, to, subject, body: gesendet.append(
+            {"to": to, "subject": subject, "body": body}
+        ),
+    )
+    return gesendet
+
+
+@pytest.fixture
+def mit_postausgang(config):
+    config.smtp.enabled = True
+    config.smtp.host = "smtp.example.com"
+    config.smtp.from_address = "fax@example.com"
+    return config
+
+
+def test_report_after_confirmed_transmission(mit_postausgang, storage, spool, postfach, monkeypatch):
+    """Bestaetigt das Backend die Uebertragung, geht ein Sendebericht hinaus."""
+    from mail2fax.fax.base import FaxResult
+
+    monkeypatch.setattr(
+        "mail2fax.fax.dummy.DummyBackend.send",
+        lambda *a, **k: FaxResult(
+            success=True, detail="ok", confirmed=True, pages_sent=1,
+            rate="14400", resolution="204x196", remote_station="+4930999888", duration=12.0,
+        ),
+    )
+    job = enqueue(mit_postausgang, storage, build_mail())
+    assert send_job(mit_postausgang, storage, job) is True
+
+    assert len(postfach) == 1
+    assert "Sendebericht" in postfach[0]["subject"]
+    assert "+4930999888" in postfach[0]["body"]
+
+    gespeichert = storage.get_job(job.id)
+    assert gespeichert.confirmed is True
+    assert gespeichert.pages_sent == 1
+    assert gespeichert.rate == "14400"
+    assert gespeichert.remote_station == "+4930999888"
+    assert gespeichert.reported_at is not None
+
+
+def test_report_after_unconfirmed_handover(mit_postausgang, storage, spool, postfach):
+    """Ohne Quittung wird das im Bericht ausdruecklich gesagt."""
+    job = enqueue(mit_postausgang, storage, build_mail())
+    send_job(mit_postausgang, storage, job)
+
+    assert len(postfach) == 1
+    assert "ohne Uebertragungsnachweis" in postfach[0]["subject"]
+    assert storage.get_job(job.id).confirmed is False
+
+
+def test_no_report_for_unlisted_sender_on_rejection(mit_postausgang, storage, spool, postfach):
+    """Der Kernpunkt: Ein fremder Absender erhaelt keine Antwort."""
+    job = enqueue(mit_postausgang, storage, build_mail(sender="fremd@example.org"))
+    assert job.status == STATUS_REJECTED
+    assert postfach == [], "An einen nicht gelisteten Absender darf keine Post gehen"
+
+
+def test_report_for_listed_sender_on_rejection(mit_postausgang, storage, spool, postfach):
+    """Ein berechtigter Absender erfaehrt, warum die Nachricht abgelehnt wurde."""
+    job = enqueue(mit_postausgang, storage, build_mail(subject="Bitte faxen"))
+    assert job.status == STATUS_REJECTED
+    assert len(postfach) == 1
+    assert postfach[0]["to"] == "chef@example.com"
+    assert "Rufnummer" in postfach[0]["body"]
+
+
+def test_failure_report_after_last_attempt(mit_postausgang, storage, spool, postfach, monkeypatch):
+    from mail2fax.fax.base import FaxError
+
+    mit_postausgang.fax.max_attempts = 1
+    monkeypatch.setattr(
+        "mail2fax.fax.dummy.DummyBackend.send",
+        lambda *a, **k: (_ for _ in ()).throw(FaxError("Gegenstelle antwortet nicht")),
+    )
+    job = enqueue(mit_postausgang, storage, build_mail())
+    send_job(mit_postausgang, storage, job)
+
+    assert storage.get_job(job.id).status == STATUS_FAILED
+    assert len(postfach) == 1
+    assert "Fehlerbericht" in postfach[0]["subject"]
+    assert "Gegenstelle antwortet nicht" in postfach[0]["body"]
+
+
+def test_no_report_while_retries_remain(mit_postausgang, storage, spool, postfach, monkeypatch):
+    """Zwischenversuche loesen keine Post aus - erst das endgueltige Scheitern."""
+    from mail2fax.fax.base import FaxError
+
+    mit_postausgang.fax.max_attempts = 3
+    monkeypatch.setattr(
+        "mail2fax.fax.dummy.DummyBackend.send",
+        lambda *a, **k: (_ for _ in ()).throw(FaxError("Leitung belegt")),
+    )
+    job = enqueue(mit_postausgang, storage, build_mail())
+    send_job(mit_postausgang, storage, job)
+
+    assert storage.get_job(job.id).status == "queued"
+    assert postfach == []
+
+
+def test_reports_stay_off_without_smtp(config, storage, spool, postfach):
+    """Ohne eingerichteten Postausgang wird nichts versendet."""
+    config.smtp.enabled = False
+    job = enqueue(config, storage, build_mail())
+    send_job(config, storage, job)
+    assert postfach == []
+
+
+def test_dry_run_report_is_not_confirmed(mit_postausgang, storage, spool, postfach):
+    """Im Testbetrieb darf kein Bericht eine Uebertragung behaupten."""
+    mit_postausgang.fax.dry_run = True
+    job = enqueue(mit_postausgang, storage, build_mail())
+    send_job(mit_postausgang, storage, job)
+
+    assert storage.get_job(job.id).confirmed is False
+    assert len(postfach) == 1
+    assert "ohne Uebertragungsnachweis" in postfach[0]["subject"]

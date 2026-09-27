@@ -106,6 +106,9 @@ if [ "${SELFTEST}" = "yes" ]; then
 [mail2fax-selftest]
 exten => recv,1,Answer()
  same => n,Set(FAXOPT(ecm)=no)
+; Kennung der "Gegenstelle" - damit prueft der Selbsttest, dass die
+; Stationskennung im Sendebericht tatsaechlich ankommt.
+ same => n,Set(FAXOPT(localstationid)=+4930999888)
  same => n,ReceiveFAX(/tmp/mail2fax-integrationstest.tif)
  same => n,Hangup()
 EOF

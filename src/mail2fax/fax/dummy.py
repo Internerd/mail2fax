@@ -22,6 +22,7 @@ class DummyBackend(FaxBackend):
         return FaxResult(
             success=True,
             detail=f"Testbetrieb - es wurde nichts gesendet ({len(documents)} Dokument(e): {names})",
+            confirmed=False,
         )
 
     def test(self) -> str:

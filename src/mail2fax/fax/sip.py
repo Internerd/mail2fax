@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import shutil
+import time
 import uuid
 from pathlib import Path
 
@@ -42,6 +43,44 @@ DIAL_REASONS = {
     "5": "Besetzt",
     "8": "Leitung belegt (Congestion)",
 }
+
+
+def _as_pages(value: str) -> int | None:
+    """Wandelt die Seitenangabe von res_fax; leer oder unlesbar ergibt None."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+#: Uebliche vertikale Faxaufloesungen in dpi und ihre Bezeichnung.
+RESOLUTION_NAMES = {98: "Standard", 196: "fein", 391: "superfein"}
+
+#: Umrechnung der Angabe von res_fax (Punkte je Meter) in dpi.
+_DOTS_PER_METRE_TO_DPI = 39.3701
+
+
+def _format_resolution(value: str) -> str:
+    """Macht aus der Angabe von res_fax eine lesbare Aufloesung.
+
+    Asterisk meldet die Aufloesung in Punkten je Meter, etwa "8031x7700".
+    Im Sendebericht steht das besser als "204 x 196 dpi (fein)".
+    Unbekannte Formate werden unveraendert durchgereicht.
+    """
+    text = (value or "").strip().lower()
+    if "x" not in text:
+        return text
+    waagerecht, _, senkrecht = text.partition("x")
+    try:
+        dpi_x = round(float(waagerecht) / _DOTS_PER_METRE_TO_DPI)
+        dpi_y = round(float(senkrecht) / _DOTS_PER_METRE_TO_DPI)
+    except ValueError:
+        return text
+    if not (50 <= dpi_x <= 1200 and 50 <= dpi_y <= 1200):
+        return text
+    bezeichnung = RESOLUTION_NAMES.get(dpi_y)
+    lesbar = f"{dpi_x} x {dpi_y} dpi"
+    return f"{lesbar} ({bezeichnung})" if bezeichnung else lesbar
 
 
 class SipBackend(FaxBackend):
@@ -118,6 +157,7 @@ class SipBackend(FaxBackend):
         target = self.dial_string(number)
         LOGGER.info("Sende Fax %s an %s ueber SIP (%s)", reference, target, settings.endpoint_name)
 
+        begonnen = time.monotonic()
         try:
             with self._client() as client:
                 self._originate(client, target, tiff, reference, subject)
@@ -125,6 +165,7 @@ class SipBackend(FaxBackend):
         except AmiError as error:
             raise FaxError(str(error), permanent=error.permanent) from error
 
+        result.duration = round(time.monotonic() - begonnen, 1)
         return result
 
     def _originate(
@@ -193,24 +234,45 @@ class SipBackend(FaxBackend):
 
     @staticmethod
     def _evaluate(packet: AmiMessage) -> FaxResult:
-        """Wertet die Rueckmeldung des Dialplans aus."""
+        """Wertet die Rueckmeldung des Dialplans aus.
+
+        Meldet res_fax "SUCCESS", hat die Gegenstelle am Ende der
+        T.30-Uebertragung quittiert. Nur dann gilt das Fax als bestaetigt
+        uebertragen - entsprechend wird ``confirmed`` gesetzt.
+        """
         status = (packet.get("status") or "").strip().upper()
-        pages = (packet.get("pages") or "0").strip()
+        pages = (packet.get("pages") or "").strip()
         detail = (packet.get("detail") or "").strip()
         error = (packet.get("error") or "").strip()
         rate = (packet.get("rate") or "").strip()
+        resolution = (packet.get("resolution") or "").strip()
+        remote = (packet.get("remotestation") or "").strip()
 
         if status in SUCCESS_STATES:
-            beschreibung = f"{pages} Seite(n) uebertragen"
+            uebertragen = _as_pages(pages)
+            beschreibung = f"{uebertragen if uebertragen is not None else '?'} Seite(n) uebertragen"
             if rate:
                 beschreibung += f" mit {rate} bit/s"
-            return FaxResult(success=True, detail=beschreibung)
+            if remote:
+                beschreibung += f", Gegenstelle {remote}"
+            return FaxResult(
+                success=True,
+                detail=beschreibung,
+                confirmed=True,
+                pages_sent=uebertragen,
+                rate=rate,
+                resolution=_format_resolution(resolution),
+                remote_station=remote,
+            )
 
         meldung = detail or error or status or "unbekannter Fehler"
         # Ein leerer Status bedeutet meist, dass die Verbindung abbrach,
         # bevor die Faxuebertragung begonnen hat.
         if not status:
             meldung = f"Verbindung endete ohne Faxuebertragung ({meldung})"
+        uebertragen = _as_pages(pages)
+        if uebertragen:
+            meldung += f" - nach {uebertragen} uebertragener Seite(n)"
         raise FaxError(f"Faxuebertragung fehlgeschlagen: {meldung}")
 
     # -- Selbsttest --------------------------------------------------------

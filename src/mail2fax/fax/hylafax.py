@@ -74,7 +74,15 @@ class HylafaxBackend(FaxBackend):
             if "request id is" in line.lower():
                 remote_id = line.split()[-1].strip(".")
                 break
-        return FaxResult(success=True, detail=stdout or "Auftrag an HylaFAX uebergeben", remote_id=remote_id)
+        # sendfax stellt den Auftrag lediglich in die Warteschlange. Ob das Fax
+        # tatsaechlich uebertragen wurde, weiss erst HylaFAX selbst - daher
+        # bleibt confirmed bewusst falsch (siehe FaxResult).
+        return FaxResult(
+            success=True,
+            detail=stdout or "Auftrag an HylaFAX uebergeben",
+            remote_id=remote_id,
+            confirmed=False,
+        )
 
     def test(self) -> str:
         binary = self._binary()

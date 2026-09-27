@@ -217,6 +217,17 @@ Zugangsdaten, `Unregistered` = Anlage nicht erreichbar) oder
 vollständige Fehlertabelle steht in
 [FAX-BACKENDS.md](FAX-BACKENDS.md#7-fehlersuche).
 
+### Der Absender bekommt keinen Bericht
+
+Berichte gehen nur an Adressen der **Absender-Whitelist** – das ist so
+gewollt. Prüfen Sie außerdem, ob unter *E-Mail* der Postausgang eingerichtet
+und „Berichte an den Absender" aktiv ist. Liefert der Versandweg keine
+Quittung und ist „Auch ohne Übertragungsnachweis berichten" abgeschaltet,
+bleibt es bei erfolgreicher Übergabe bewusst still. Das Protokoll nennt in
+jedem Fall den Grund.
+
+Siehe [SENDEBERICHTE.md](SENDEBERICHTE.md).
+
 ## Überwachung
 
 Für Monitoring-Systeme steht ein Endpunkt bereit:

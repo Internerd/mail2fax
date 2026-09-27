@@ -11,6 +11,10 @@ was bei Ihnen vorhanden ist.
 | [Externes Kommando](#externes-kommando) | Asterisk, 3CX, CapiSuite, eigene Skripte | hoch | mittel |
 | [Testbetrieb](#testbetrieb) | Inbetriebnahme, keine echte Zustellung | – | – |
 
+> **Nur SIP liefert einen belegten Sendebericht.** Die übrigen Versandwege
+> reichen den Auftrag weiter und erfahren nicht, ob das Fax angekommen ist –
+> siehe [SENDEBERICHTE.md](SENDEBERICHTE.md).
+
 > **Für eine FRITZ!Box ist [SIP](#sip--fritzbox-oder-telefonanlage) der Weg.**
 > mail2fax meldet sich als IP-Telefon an und telefoniert regulär.
 >

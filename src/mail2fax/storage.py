@@ -7,6 +7,7 @@ gefaxt) und als Schutz gegen Doppelversand ueber die Message-ID.
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import threading
 import time
@@ -17,6 +18,8 @@ from pathlib import Path
 from typing import Any
 
 from .paths import DB_PATH
+
+LOGGER = logging.getLogger(__name__)
 
 STATUS_QUEUED = "queued"
 STATUS_SENDING = "sending"
@@ -40,7 +43,16 @@ CREATE TABLE IF NOT EXISTS jobs (
     pages           INTEGER,
     documents       TEXT NOT NULL DEFAULT '[]',
     error           TEXT,
-    backend         TEXT NOT NULL DEFAULT ''
+    backend         TEXT NOT NULL DEFAULT '',
+    -- Angaben des Sendeberichts. "confirmed" ist nur gesetzt, wenn die
+    -- Gegenstelle den Empfang quittiert hat.
+    confirmed       INTEGER NOT NULL DEFAULT 0,
+    pages_sent      INTEGER,
+    rate            TEXT NOT NULL DEFAULT '',
+    resolution      TEXT NOT NULL DEFAULT '',
+    remote_station  TEXT NOT NULL DEFAULT '',
+    duration        REAL,
+    reported_at     REAL
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs (status, next_attempt_at);
 CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs (created_at DESC);
@@ -79,6 +91,16 @@ class Job:
     error: str | None = None
     backend: str = ""
 
+    #: Die Gegenstelle hat den Empfang quittiert (echter Sendebericht).
+    confirmed: bool = False
+    pages_sent: int | None = None
+    rate: str = ""
+    resolution: str = ""
+    remote_station: str = ""
+    duration: float | None = None
+    #: Zeitpunkt, zu dem der Bericht an den Absender ging.
+    reported_at: float | None = None
+
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Job:
         return cls(
@@ -97,6 +119,13 @@ class Job:
             documents=json.loads(row["documents"] or "[]"),
             error=row["error"],
             backend=row["backend"],
+            confirmed=bool(row["confirmed"]),
+            pages_sent=row["pages_sent"],
+            rate=row["rate"] or "",
+            resolution=row["resolution"] or "",
+            remote_station=row["remote_station"] or "",
+            duration=row["duration"],
+            reported_at=row["reported_at"],
         )
 
 
@@ -113,6 +142,33 @@ class Storage:
         self._connection.execute("PRAGMA foreign_keys=ON")
         with self._connection:
             self._connection.executescript(_SCHEMA)
+            self._migrate()
+
+    def _migrate(self) -> None:
+        """Ergaenzt Spalten, die in aelteren Datenbanken fehlen.
+
+        "CREATE TABLE IF NOT EXISTS" laesst eine bestehende Tabelle
+        unveraendert, deshalb werden neue Spalten hier nachgezogen. So
+        ueberlebt die Auftragshistorie eine Aktualisierung.
+        """
+        vorhanden = {
+            row["name"] for row in self._connection.execute("PRAGMA table_info(jobs)")
+        }
+        nachzuziehen = {
+            "confirmed": "INTEGER NOT NULL DEFAULT 0",
+            "pages_sent": "INTEGER",
+            "rate": "TEXT NOT NULL DEFAULT ''",
+            "resolution": "TEXT NOT NULL DEFAULT ''",
+            "remote_station": "TEXT NOT NULL DEFAULT ''",
+            "duration": "REAL",
+            "reported_at": "REAL",
+        }
+        for name, definition in nachzuziehen.items():
+            if name not in vorhanden:
+                self._connection.execute(
+                    f"ALTER TABLE jobs ADD COLUMN {name} {definition}"
+                )
+                LOGGER.info("Datenbank erweitert: Spalte %s ergaenzt", name)
 
     def close(self) -> None:
         with self._lock:

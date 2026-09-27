@@ -7,6 +7,41 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Hinzugefügt
 
+- **Sendebericht mit Übertragungsnachweis.** Beim Versandweg SIP wertet
+  mail2fax die T.30-Quittung des empfangenden Faxgeräts aus. Der Bericht an
+  den Absender nennt übertragene Seiten, Übertragungsrate, Auflösung, Dauer
+  und die Stationskennung der Gegenstelle.
+- **Fehlerbericht** an den Absender bei endgültigem Scheitern und bei
+  abgelehnten Nachrichten, mit Grund, Versuchszahl und Hinweis zur
+  richtigen Verwendung.
+- Versandwege, die eine Übertragung nicht bestätigen können, erzeugen eine
+  **Übergabebestätigung**, die den fehlenden Nachweis ausdrücklich benennt.
+  Abschaltbar über `smtp.report_unconfirmed`.
+- Einstellung `fax.command.confirms_delivery` für externe Kommandos, die die
+  Übertragung abwarten
+- Auftragsliste zeigt eine Spalte *Quittung*, das Auftragsdetail den
+  vollständigen Sendebericht
+- Hinweis auf der Übersicht, wenn der gewählte Versandweg keine Quittung
+  liefern kann
+- Die Auftragsdatenbank speichert die Angaben des Sendeberichts; bestehende
+  Datenbanken werden beim Start um die neuen Spalten erweitert
+- Dokumentation: [docs/SENDEBERICHTE.md](docs/SENDEBERICHTE.md)
+
+### Behoben
+
+- **Berichte gingen an beliebige Absender.** Eine abgelehnte Nachricht löste
+  bisher auch dann eine Fehlermeldung aus, wenn der Absender *nicht* auf der
+  Whitelist stand. Da der `From`-Header fälschbar ist, war mail2fax damit als
+  Absender fremder Post missbrauchbar und verriet die Existenz der Adresse.
+  Berichte gehen jetzt ausschließlich an Adressen der Absender-Whitelist.
+- Der Erfolgsbericht behauptete keine Übertragung, belegte aber auch keine.
+  Sendebericht und Übergabebestätigung sind nun getrennt und im Betreff
+  unterscheidbar.
+- Die von Asterisk gemeldete Auflösung (Punkte je Meter, z. B. `8031x7700`)
+  wird in dpi umgerechnet: `204 x 196 dpi (fein)`
+
+### Hinzugefügt
+
 - **Faxversand über SIP** an FRITZ!Box und Telefonanlagen: mail2fax meldet
   sich als IP-Telefon an und überträgt das Fax selbst. Die Signalverarbeitung
   (T.30 bzw. T.38) übernimmt ein lokal installierter Asterisk mit

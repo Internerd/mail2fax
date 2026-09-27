@@ -337,6 +337,7 @@ def create_app(config_path: Path | None = None, *, start_worker: bool = True) ->
         smtp.from_address = str(form.get("smtp_from", "")).strip()
         smtp.admin_address = str(form.get("smtp_admin", "")).strip()
         smtp.notify_sender = form.get("smtp_notify_sender") == "on"
+        smtp.report_unconfirmed = form.get("smtp_report_unconfirmed") == "on"
         smtp.verify_tls = form.get("smtp_verify_tls") == "on"
 
         store_config(config)
@@ -609,7 +610,25 @@ def _configuration_warnings(config: AppConfig) -> list[str]:
         warnings.append("Der Testbetrieb (dry-run) ist aktiv - es werden keine Faxe versendet.")
     if not config.imap.verify_tls and config.imap.enabled:
         warnings.append("Die TLS-Zertifikatspruefung fuer IMAP ist abgeschaltet.")
+    if config.smtp.enabled and config.smtp.notify_sender and not _backend_confirms(config):
+        warnings.append(
+            "Der gewaehlte Versandweg liefert keine Quittung der Gegenstelle. "
+            "Berichte an den Absender koennen die Uebertragung daher nicht "
+            "belegen - sie weisen ausdruecklich darauf hin. Ein belegter "
+            "Sendebericht ist mit dem Versandweg 'SIP' moeglich."
+        )
     return warnings
+
+
+def _backend_confirms(config: AppConfig) -> bool:
+    """Ob der eingestellte Versandweg eine Empfangsquittung liefern kann."""
+    if config.fax.dry_run:
+        return False
+    if config.fax.backend == "sip":
+        return True
+    if config.fax.backend == "command":
+        return config.fax.command.confirms_delivery
+    return False
 
 
 def _as_int(value: object, fallback: int) -> int:

@@ -44,11 +44,16 @@ Verarbeitet werden ausschließlich **ungelesene** Nachrichten.
 | `host` / `port` | – / `587` | SMTP-Server |
 | `security` | `starttls` | `starttls`, `ssl`, `none` |
 | `from_address` | – | Absenderadresse |
-| `notify_sender` | `true` | Absender über Erfolg/Misserfolg informieren |
+| `notify_sender` | `true` | Sende- und Fehlerberichte an den Absender (nur Whitelist) |
+| `report_unconfirmed` | `true` | auch ohne Quittung der Gegenstelle berichten |
 | `admin_address` | – | zusätzliche Adresse für Fehlermeldungen |
 
-Statusmeldungen tragen `Auto-Submitted: auto-replied`, damit keine
-Mailschleifen entstehen.
+Berichte tragen `Auto-Submitted: auto-replied` und
+`X-Auto-Response-Suppress: All`, damit keine Mailschleifen entstehen.
+
+> Berichte gehen **ausschließlich** an Adressen der Absender-Whitelist.
+> Ein *Sendebericht*, der die Übertragung behauptet, entsteht nur bei
+> quittierter Übertragung – siehe [SENDEBERICHTE.md](SENDEBERICHTE.md).
 
 ## `fax` – Versand
 

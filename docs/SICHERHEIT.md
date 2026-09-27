@@ -39,6 +39,18 @@ zusätzlich ab:
 Mit `dry_run: true` (*Fax → Testbetrieb*) können Sie gefahrlos beobachten,
 welche Nachrichten angenommen würden.
 
+## 1a. Keine Rückstreuung durch Berichte
+
+Sende- und Fehlerberichte gehen **ausschließlich** an Adressen der
+Absender-Whitelist. Würde mail2fax auf jede eingehende Nachricht antworten,
+ließe sich der Dienst über einen gefälschten `From`-Header als Absender
+fremder Post missbrauchen, und ein Fremder erfährte, dass die Adresse
+existiert. Eine Nachricht von außen wird daher still abgelehnt; sie erscheint
+nur in der Auftragsliste und im Protokoll.
+
+Der Administrator erhält Fehlerberichte auch zu fremden Absendern – er
+betreut die Anlage.
+
 ## 2. Schutz vertraulicher Inhalte
 
 * Die Konfiguration `/etc/mail2fax/config.yaml` enthält **Zugangsdaten im

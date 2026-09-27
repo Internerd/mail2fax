@@ -129,8 +129,25 @@
     </div>
     <label class="inline">
       <input type="checkbox" name="smtp_notify_sender" {{ 'checked' if config.smtp.notify_sender }}>
-      Absender der Ursprungsmail benachrichtigen
+      Sende- und Fehlerberichte an den Absender schicken
     </label>
+    <p class="hint">
+      Berichte gehen <strong>ausschließlich</strong> an Adressen der
+      Absender-Whitelist. An fremde Absender wird nie geantwortet – der
+      Absender einer E-Mail ist fälschbar.
+    </p>
+    <label class="inline">
+      <input type="checkbox" name="smtp_report_unconfirmed" {{ 'checked' if config.smtp.report_unconfirmed }}>
+      Auch ohne Übertragungsnachweis berichten
+    </label>
+    <p class="hint">
+      Ein <em>Sendebericht</em> wird nur erstellt, wenn die Gegenstelle den
+      Empfang quittiert hat – das leistet der Versandweg <strong>SIP</strong>.
+      Andere Versandwege übergeben den Auftrag nur weiter. Ist diese Option
+      aktiv, erhält der Absender dann eine Übergabebestätigung, die
+      ausdrücklich auf den fehlenden Nachweis hinweist; andernfalls bekommt er
+      in diesem Fall keine Post.
+    </p>
     <label class="inline">
       <input type="checkbox" name="smtp_verify_tls" {{ 'checked' if config.smtp.verify_tls }}>
       TLS-Zertifikat prüfen

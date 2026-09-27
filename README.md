@@ -43,7 +43,7 @@ ausschließlich aus dem lokalen Netz erreichbar ist.
 | Zugangsschutz | Absender-Whitelist (Pflicht), Rufnummernsperren, Mengenbegrenzung |
 | Versandwege | SIP (FRITZ!Box/TK-Anlage), HylaFAX, Fax-per-E-Mail-Gateway, beliebiges Kommando |
 | Weboberfläche | Konfiguration, Auftragsübersicht, Protokoll, Tests – nur im lokalen Netz |
-| Quittungen | optionale Statusmeldungen per SMTP an Absender und Administrator |
+| Berichte | Sendebericht mit Quittung der Gegenstelle, Fehlerbericht – nur an Absender der Whitelist |
 | Betrieb | systemd-Dienst, Wiederholversuche, Auftragshistorie mit Löschfrist |
 
 ## Schnellinstallation auf Proxmox VE
@@ -147,6 +147,23 @@ Neues Gerät → Telefon → LAN/WLAN*) und dessen Zugangsdaten in mail2fax unte
 > brechen konnte. Steht in Ihrer Konfiguration noch `backend: fritzbox`,
 > startet mail2fax im Testbetrieb und weist darauf hin – stellen Sie auf
 > **SIP** um.
+
+## Sende- und Fehlerberichte
+
+Der Absender bekommt zurückgemeldet, was aus seinem Fax geworden ist – mit zwei
+festen Regeln:
+
+* **Nur an die Absender-Whitelist.** Wer nicht gelistet ist, erhält keine
+  Antwort, auch keine Fehlermeldung. Der Absender einer E-Mail ist fälschbar;
+  sonst wäre mail2fax als Absender fremder Post missbrauchbar.
+* **Ein Sendebericht behauptet nichts Unbelegtes.** „Übertragen" steht nur
+  dort, wo das **empfangende Faxgerät quittiert** hat. Das leistet der
+  Versandweg **SIP**: Der Bericht nennt dann Seitenzahl, Übertragungsrate,
+  Auflösung, Dauer und die Stationskennung der Gegenstelle. Versandwege, die
+  den Auftrag nur weiterreichen, erzeugen eine **Übergabebestätigung**, die
+  den fehlenden Nachweis ausdrücklich benennt.
+
+Einzelheiten und Beispieltexte: **[docs/SENDEBERICHTE.md](docs/SENDEBERICHTE.md)**
 
 ## Sicherheit
 

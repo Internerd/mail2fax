@@ -87,7 +87,13 @@ class CommandBackend(FaxBackend):
             raise FaxError(
                 f"Kommando endete mit Code {completed.returncode}: {stderr or stdout}"
             )
-        return FaxResult(success=True, detail=stdout or "Kommando erfolgreich ausgefuehrt")
+        # Ob das Kommando die Uebertragung abwartet, weiss nur der Betreiber -
+        # deshalb ist die Bestaetigung eine bewusste Einstellung.
+        return FaxResult(
+            success=True,
+            detail=stdout or "Kommando erfolgreich ausgefuehrt",
+            confirmed=self.settings.confirms_delivery,
+        )
 
     def test(self) -> str:
         if not self.settings.argv:

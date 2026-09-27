@@ -100,7 +100,14 @@ class MailGatewayBackend(FaxBackend):
             )
 
         _send_via_smtp(smtp, message)
-        return FaxResult(success=True, detail=f"Fax als E-Mail an {recipient} uebergeben")
+        # Der Gateway-Anbieter bestaetigt die Uebertragung - wenn ueberhaupt -
+        # mit einer eigenen Nachricht. Aus Sicht von mail2fax ist der Auftrag
+        # nur uebergeben, nicht bestaetigt.
+        return FaxResult(
+            success=True,
+            detail=f"Fax als E-Mail an {recipient} uebergeben",
+            confirmed=False,
+        )
 
     def test(self) -> str:
         smtp = self._smtp_settings()

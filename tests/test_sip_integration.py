@@ -130,11 +130,18 @@ def test_fax_wird_tatsaechlich_uebertragen(asterisk_bereit, ami_zugang, tmp_path
     except AmiError as error:
         pytest.skip(f"AMI nicht nutzbar: {error}")
 
-    # Das Backend muss die Rueckmeldung als Erfolg erkennen.
+    # Das Backend muss die Rueckmeldung als bestaetigte Uebertragung erkennen -
+    # nur dann darf ein Sendebericht die Uebertragung behaupten.
     result = SipBackend._evaluate(ergebnis)
     assert result.success
+    assert result.confirmed is True, "Eine quittierte Uebertragung muss bestaetigt sein"
+    assert result.pages_sent == 1
+    assert result.rate, "Die Uebertragungsrate gehoert in den Sendebericht"
+    assert "dpi" in result.resolution, f"Aufloesung unlesbar: {result.resolution!r}"
+    if result.remote_station:
+        # Der Empfangskontext aus sip-setup.sh --selftest setzt diese Kennung.
+        assert result.remote_station == "+4930999888"
     assert ergebnis.get("status") == "SUCCESS"
-    assert ergebnis.get("pages") == "1"
 
     # Und die Gegenstelle muss eine lesbare Faxseite erhalten haben.
     assert empfangen.exists(), "ReceiveFAX hat keine Datei geschrieben"

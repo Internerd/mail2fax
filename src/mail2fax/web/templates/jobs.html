@@ -15,7 +15,7 @@
 <div class="card">
   {% if jobs %}
   <table>
-    <tr><th>#</th><th>Zeitpunkt</th><th>Absender</th><th>Betreff</th><th>An</th><th>Seiten</th><th>Versuche</th><th>Status</th></tr>
+    <tr><th>#</th><th>Zeitpunkt</th><th>Absender</th><th>Betreff</th><th>An</th><th>Seiten</th><th>Versuche</th><th>Status</th><th>Quittung</th></tr>
     {% for job in jobs %}
     <tr>
       <td><a href="/auftraege/{{ job.id }}">{{ job.id }}</a></td>
@@ -26,6 +26,7 @@
       <td>{{ job.pages if job.pages is not none else '–' }}</td>
       <td>{{ job.attempts }}</td>
       <td><span class="badge {{ job.status }}">{{ job.status }}</span></td>
+      <td>{% if job.confirmed %}<span class="badge sent" title="Die Gegenstelle hat quittiert">bestätigt</span>{% elif job.status == 'sent' %}<span class="badge sending" title="Übergeben, aber ohne Bestätigung der Gegenstelle">ohne</span>{% else %}–{% endif %}</td>
     </tr>
     {% endfor %}
   </table>

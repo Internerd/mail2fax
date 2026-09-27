@@ -143,13 +143,13 @@ exten => {DIALPLAN_EXTEN},1,NoOp(mail2fax: Fax ${{M2F_REF}} an ${{M2F_NUMBER}})
  same => n,Set(FAXOPT(maxrate)=${{M2F_MAXRATE}})
  same => n,SendFAX(${{M2F_FILE}},${{M2F_OPTIONS}})
  same => n,NoOp(mail2fax: Status=${{FAXOPT(status)}} Seiten=${{FAXOPT(pages)}})
- same => n,UserEvent({RESULT_EVENT},Ref: ${{M2F_REF}},Status: ${{FAXOPT(status)}},Pages: ${{FAXOPT(pages)}},Rate: ${{FAXOPT(rate)}},Resolution: ${{FAXOPT(resolution)}},Error: ${{FAXOPT(error)}},Detail: ${{FAXOPT(statusstr)}})
+ same => n,UserEvent({RESULT_EVENT},Ref: ${{M2F_REF}},Status: ${{FAXOPT(status)}},Pages: ${{FAXOPT(pages)}},Rate: ${{FAXOPT(rate)}},Resolution: ${{FAXOPT(resolution)}},Remotestation: ${{FAXOPT(remotestationid)}},Error: ${{FAXOPT(error)}},Detail: ${{FAXOPT(statusstr)}})
  same => n,Hangup()
 
 ; Auch bei Abbruch (Gegenstelle legt auf, Fehler im Modem) soll mail2fax
 ; eine Rueckmeldung bekommen, statt in den Zeitablauf zu laufen.
 exten => h,1,NoOp(mail2fax: Verbindung beendet - Status=${{FAXOPT(status)}})
- same => n,UserEvent({RESULT_EVENT},Ref: ${{M2F_REF}},Status: ${{FAXOPT(status)}},Pages: ${{FAXOPT(pages)}},Rate: ${{FAXOPT(rate)}},Resolution: ${{FAXOPT(resolution)}},Error: ${{FAXOPT(error)}},Detail: ${{FAXOPT(statusstr)}})
+ same => n,UserEvent({RESULT_EVENT},Ref: ${{M2F_REF}},Status: ${{FAXOPT(status)}},Pages: ${{FAXOPT(pages)}},Rate: ${{FAXOPT(rate)}},Resolution: ${{FAXOPT(resolution)}},Remotestation: ${{FAXOPT(remotestationid)}},Error: ${{FAXOPT(error)}},Detail: ${{FAXOPT(statusstr)}})
  same => n,Return()
 
 exten => failed,1,NoOp(mail2fax: Verbindungsaufbau gescheitert - ${{REASON}})

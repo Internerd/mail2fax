@@ -16,6 +16,31 @@
     <tr><th>Quelle</th><td>{{ job.source }}</td></tr>
     <tr><th>Dokumente</th><td>{% for document in job.documents %}{{ document }}<br>{% else %}–{% endfor %}</td></tr>
   </table>
+</div>
+
+<div class="card">
+  <h2>Sendebericht</h2>
+  {% if job.status == 'sent' and job.confirmed %}
+    <div class="notice ok">
+      Die Gegenstelle hat den Empfang <strong>quittiert</strong>. Das Fax wurde übertragen.
+    </div>
+  {% elif job.status == 'sent' %}
+    <div class="notice warn">
+      Der Auftrag wurde übergeben, aber <strong>nicht quittiert</strong>: Dieser
+      Versandweg liefert keine Bestätigung der Gegenstelle. Ob das Fax angekommen
+      ist, ist damit nicht belegt.
+    </div>
+  {% else %}
+    <p class="hint">Es liegt noch keine abgeschlossene Übertragung vor.</p>
+  {% endif %}
+  <table>
+    <tr><th>Übertragen</th><td>{{ job.pages_sent if job.pages_sent is not none else '–' }}{% if job.pages %} von {{ job.pages }} Seite(n){% endif %}</td></tr>
+    <tr><th>Gegenstelle</th><td class="num">{{ job.remote_station or '–' }}</td></tr>
+    <tr><th>Auflösung</th><td>{{ job.resolution or '–' }}</td></tr>
+    <tr><th>Übertragungsrate</th><td>{% if job.rate %}{{ job.rate }} bit/s{% else %}–{% endif %}</td></tr>
+    <tr><th>Dauer</th><td>{% if job.duration is not none %}{{ '%.0f'|format(job.duration) }} s{% else %}–{% endif %}</td></tr>
+    <tr><th>Bericht an Absender</th><td>{{ job.reported_at | ts }}</td></tr>
+  </table>
   {% if job.error %}<div class="notice err" style="margin-top:1rem">{{ job.error }}</div>{% endif %}
   <div class="actions">
     <a class="button secondary" href="/auftraege">Zurück</a>

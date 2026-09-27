@@ -363,3 +363,46 @@ def test_registration_state_parsing():
     ausgabe = "mail2fax-tk/sip:fritz.box   mail2fax-tk-auth   Rejected   (exp. 12s ago)"
     assert SipBackend._registration_state(ausgabe, "mail2fax-tk") == "Rejected"
     assert SipBackend._registration_state(ausgabe, "anderer") == "nicht gefunden"
+
+
+# -- Sendebericht: Quittung der Gegenstelle --------------------------------
+
+
+@needs_ghostscript
+def test_successful_transmission_is_confirmed(config, asterisk, document):
+    """res_fax meldet SUCCESS - also hat die Gegenstelle quittiert."""
+    asterisk.result = {
+        "Status": "SUCCESS", "Pages": "2", "Rate": "14400",
+        "Resolution": "8031x7700", "Remotestation": "+4930999888", "Detail": "OK",
+    }
+    result = get_backend(config).send(Number("+49301234567"), [document])
+    assert result.confirmed is True
+    assert result.pages_sent == 2
+    assert result.rate == "14400"
+    assert result.resolution == "204 x 196 dpi (fein)"
+    assert result.remote_station == "+4930999888"
+    assert result.duration is not None and result.duration >= 0
+
+
+@pytest.mark.parametrize(
+    ("roh", "erwartet"),
+    [
+        ("8031x7700", "204 x 196 dpi (fein)"),
+        ("8031x3850", "204 x 98 dpi (Standard)"),
+        ("8031x15400", "204 x 391 dpi (superfein)"),
+        ("", ""),
+        ("unbekannt", "unbekannt"),
+    ],
+)
+def test_resolution_is_made_readable(roh, erwartet):
+    """Asterisk meldet Punkte je Meter - im Bericht stehen dpi."""
+    from mail2fax.fax.sip import _format_resolution
+
+    assert _format_resolution(roh) == erwartet
+
+
+def test_partially_transmitted_pages_appear_in_the_error():
+    from mail2fax.fax.ami import AmiMessage
+
+    with pytest.raises(FaxError, match="nach 2 uebertragener"):
+        SipBackend._evaluate(AmiMessage({"status": "FAILED", "pages": "2", "detail": "Abbruch"}))
