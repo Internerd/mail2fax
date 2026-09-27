@@ -5,6 +5,17 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unveröffentlicht]
 
+### Behoben – Installation
+
+- Beim Aufruf über `bash -c "$(curl …)"` brach `install.sh` mit
+  `BASH_SOURCE[0]: unbound variable` ab und fiel beim Quellverzeichnis auf das
+  aktuelle Arbeitsverzeichnis zurück – lag dort eine fremde `pyproject.toml`,
+  wäre das falsche Projekt installiert worden. Lokal installiert wird jetzt
+  nur noch aus einem echten mail2fax-Checkout.
+- Locale-Warnungen von perl und apt im Container: Der Proxmox-Host reichte
+  seine Locale durch, die im Container fehlt. Die Skripte verwenden jetzt
+  `C.UTF-8`, das in jedem Debian vorhanden ist.
+
 ### Behoben – Ergebnisse des Logiktests
 
 Die Kernlogik wurde mit realistischen Eingaben systematisch geprüft. Dabei

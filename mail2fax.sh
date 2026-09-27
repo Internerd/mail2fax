@@ -286,7 +286,7 @@ create_container() {
 
 install_application() {
   msg_info "Installiere ${APP} im Container (das dauert einige Minuten) ..."
-  pct exec "${var_ctid}" -- bash -c "
+  pct exec "${var_ctid}" -- env LANG=C.UTF-8 LC_ALL=C.UTF-8 bash -c "
     set -e
     export DEBIAN_FRONTEND=noninteractive MAIL2FAX_LIBREOFFICE='${var_libreoffice}'
     apt-get update -qq
@@ -296,7 +296,7 @@ install_application() {
 
   if [ "${var_sip}" = "yes" ]; then
     msg_info "Richte Asterisk fuer den Faxversand ueber SIP ein ..."
-    pct exec "${var_ctid}" -- bash -c "
+    pct exec "${var_ctid}" -- env LANG=C.UTF-8 LC_ALL=C.UTF-8 bash -c "
       set -e
       export DEBIAN_FRONTEND=noninteractive
       bash -c \"\$(curl -fsSL ${REPO_RAW}/install/sip-setup.sh)\"

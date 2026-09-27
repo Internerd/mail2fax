@@ -15,6 +15,12 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
+# Der Proxmox-Host reicht seine Locale (z. B. en_US.UTF-8) in den Container
+# durch, wo sie meist nicht installiert ist - das fuehrt zu Warnungen von
+# perl und apt. C.UTF-8 ist in jedem Debian/Ubuntu vorhanden.
+export LANG=C.UTF-8 LC_ALL=C.UTF-8
+unset LANGUAGE
+
 APP_DIR="/opt/mail2fax"
 VENV="${APP_DIR}/venv"
 SERVICE_USER="mail2fax"

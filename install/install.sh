@@ -10,6 +10,12 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
+# Der Proxmox-Host reicht seine Locale (z. B. en_US.UTF-8) in den Container
+# durch, wo sie meist nicht installiert ist - das fuehrt zu Warnungen von
+# perl und apt. C.UTF-8 ist in jedem Debian/Ubuntu vorhanden.
+export LANG=C.UTF-8 LC_ALL=C.UTF-8
+unset LANGUAGE
+
 REPO_RAW="${MAIL2FAX_REPO_RAW:-https://raw.githubusercontent.com/Internerd/mail2fax/main}"
 REPO_TARBALL="${MAIL2FAX_REPO_TARBALL:-https://github.com/Internerd/mail2fax/archive/refs/heads/main.tar.gz}"
 APP_DIR="/opt/mail2fax"
@@ -51,9 +57,17 @@ fi
 mkdir -p "${APP_DIR}" "${CONFIG_DIR}" "${DATA_DIR}"
 
 # --- Quellcode -------------------------------------------------------------
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Beim Aufruf ueber 'bash -c "$(curl ...)"' gibt es keine Skriptdatei -
+# BASH_SOURCE ist dann leer. Nur wenn das Skript tatsaechlich aus einem
+# Checkout gestartet wurde, wird von dort installiert; sonst von GitHub.
+SCRIPT_PATH="${BASH_SOURCE[0]:-}"
 SOURCE_DIR=""
-if [ -f "${SCRIPT_DIR}/../pyproject.toml" ]; then
+SCRIPT_DIR=""
+if [ -n "${SCRIPT_PATH}" ] && [ -f "${SCRIPT_PATH}" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" && pwd)"
+fi
+if [ -n "${SCRIPT_DIR}" ] && [ -f "${SCRIPT_DIR}/../pyproject.toml" ] \
+   && grep -q '^name = "mail2fax"' "${SCRIPT_DIR}/../pyproject.toml"; then
   SOURCE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
   info "Installiere aus lokalem Verzeichnis ${SOURCE_DIR}"
 else
