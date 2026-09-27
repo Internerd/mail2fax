@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import functools
 import html
 import logging
 import re
 import shutil
 import subprocess
-import textwrap
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -24,11 +24,47 @@ PAGE_WIDTH, PAGE_HEIGHT = A4
 MARGIN_X = 20 * mm
 MARGIN_TOP = 20 * mm
 MARGIN_BOTTOM = 18 * mm
-FONT_NAME = "Helvetica"
 FONT_SIZE = 10
 LINE_HEIGHT = 13
-#: Zeichen pro Zeile bei 10pt Helvetica auf A4 mit 20 mm Rand.
-WRAP_WIDTH = 95
+#: Nutzbare Zeilenbreite in Punkt.
+TEXT_WIDTH = PAGE_WIDTH - 2 * MARGIN_X
+
+#: Wo DejaVu Sans auf gaengigen Distributionen liegt.
+FONT_CANDIDATES = (
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Debian, Ubuntu
+    "/usr/share/fonts/dejavu/DejaVuSans.ttf",  # Fedora, RHEL
+    "/usr/share/fonts/TTF/DejaVuSans.ttf",  # Arch
+)
+#: Ersatz, falls DejaVu Sans fehlt. Kann nur westeuropaeische Zeichen.
+FALLBACK_FONT = "Helvetica"
+
+
+@functools.cache
+def font_name() -> str:
+    """Die Schrift fuer aus Text erzeugte Faxseiten.
+
+    Die PDF-Standardschrift Helvetica kennt nur westeuropaeische Zeichen.
+    Namen wie "Łódź", "Dvořák" oder "Şişli" und kyrillische Schrift kaemen
+    als schwarze Kaestchen beim Empfaenger an. DejaVu Sans deckt diese
+    Zeichen ab und wird deshalb bevorzugt.
+    """
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    for pfad in FONT_CANDIDATES:
+        if not Path(pfad).is_file():
+            continue
+        try:
+            pdfmetrics.registerFont(TTFont("DejaVuSans", pfad))
+        except Exception as error:
+            LOGGER.warning("Schrift %s nicht nutzbar: %s", pfad, error)
+            continue
+        return "DejaVuSans"
+    LOGGER.warning(
+        "DejaVu Sans nicht gefunden - Zeichen wie ł, ř, ş oder Kyrillisch "
+        "erscheinen auf dem Fax als Kaestchen (apt install fonts-dejavu-core)"
+    )
+    return FALLBACK_FONT
 
 
 class RenderError(Exception):
@@ -59,25 +95,63 @@ def _strip_html(raw: str) -> str:
     return text.strip()
 
 
-def _wrap(text: str, width: int = WRAP_WIDTH) -> list[str]:
-    lines: list[str] = []
-    for raw_line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
-        stripped = raw_line.rstrip()
-        if not stripped:
-            lines.append("")
+def _fits(text: str, font: str, size: float, width: float) -> bool:
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    return stringWidth(text, font, size) <= width
+
+
+def _split_word(word: str, font: str, size: float, width: float) -> list[str]:
+    """Bricht ein Wort, das allein zu breit ist, zeichenweise um."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    stuecke: list[str] = []
+    aktuell = ""
+    breite = 0.0
+    for zeichen in word:
+        zeichenbreite = stringWidth(zeichen, font, size)
+        if aktuell and breite + zeichenbreite > width:
+            stuecke.append(aktuell)
+            aktuell, breite = "", 0.0
+        aktuell += zeichen
+        breite += zeichenbreite
+    if aktuell:
+        stuecke.append(aktuell)
+    return stuecke
+
+
+def _wrap(
+    text: str,
+    font: str | None = None,
+    size: float = FONT_SIZE,
+    width: float = TEXT_WIDTH,
+) -> list[str]:
+    """Bricht Text nach seiner tatsaechlichen Breite um.
+
+    Eine feste Zeichenzahl genuegt nicht: Grossbuchstaben und breite Zeichen
+    liefen sonst ueber den rechten Rand hinaus und fehlten auf dem Fax.
+    """
+    font = font or font_name()
+    zeilen: list[str] = []
+    for rohzeile in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        zeile = rohzeile.rstrip().expandtabs(4)
+        if not zeile.strip():
+            zeilen.append("")
             continue
-        lines.extend(
-            textwrap.wrap(
-                stripped,
-                width=width,
-                replace_whitespace=False,
-                drop_whitespace=False,
-                break_long_words=True,
-                break_on_hyphens=False,
-            )
-            or [""]
-        )
-    return lines
+        einzug = " " * (len(zeile) - len(zeile.lstrip(" ")))
+        aktuell = einzug
+        for wort in zeile.split():
+            kandidat = f"{aktuell} {wort}" if aktuell.strip() else aktuell + wort
+            if _fits(kandidat, font, size, width):
+                aktuell = kandidat
+                continue
+            if aktuell.strip():
+                zeilen.append(aktuell)
+            stuecke = _split_word(wort, font, size, width)
+            zeilen.extend(stuecke[:-1])
+            aktuell = stuecke[-1]
+        zeilen.append(aktuell)
+    return zeilen
 
 
 def text_to_pdf(
@@ -93,25 +167,29 @@ def text_to_pdf(
     pdf.setTitle(title)
     pdf.setAuthor("mail2fax")
 
-    lines: list[str] = []
+    font = font_name()
+    lines: list[str | None] = []
     if header:
         for key, value in header.items():
             if value:
-                lines.extend(_wrap(f"{key}: {value}"))
-        lines.append("-" * WRAP_WIDTH)
+                lines.extend(_wrap(f"{key}: {value}", font))
+        lines.append(None)  # Trennlinie
         lines.append("")
-    lines.extend(_wrap(text or "(Diese Nachricht enthielt keinen Text.)"))
+    lines.extend(_wrap(text or "(Diese Nachricht enthielt keinen Text.)", font))
 
     y = PAGE_HEIGHT - MARGIN_TOP
     pages = 1
-    pdf.setFont(FONT_NAME, FONT_SIZE)
+    pdf.setFont(font, FONT_SIZE)
     for line in lines:
         if y < MARGIN_BOTTOM:
             pdf.showPage()
-            pdf.setFont(FONT_NAME, FONT_SIZE)
+            pdf.setFont(font, FONT_SIZE)
             pages += 1
             y = PAGE_HEIGHT - MARGIN_TOP
-        pdf.drawString(MARGIN_X, y, line)
+        if line is None:
+            pdf.line(MARGIN_X, y + 3, PAGE_WIDTH - MARGIN_X, y + 3)
+        else:
+            pdf.drawString(MARGIN_X, y, line)
         y -= LINE_HEIGHT
     pdf.save()
     return Document(path=target, name=target.name, pages=pages)

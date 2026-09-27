@@ -13,7 +13,7 @@ from . import notify
 from .config import AppConfig
 from .fax import FaxError, get_backend
 from .mailbox import MailMessage
-from .paths import SPOOL_DIR
+from .paths import SPOOL_DIR, make_workdir
 from .render import Document, RenderError, build_mail_header, prepare_attachment, text_to_pdf
 from .rules import (
     Number,
@@ -168,7 +168,7 @@ def prepare(config: AppConfig, storage: Storage, message: MailMessage) -> Prepar
 
     check_rate_limit(config, storage, sender)
 
-    workdir = SPOOL_DIR / f"{int(time.time())}-{abs(hash(message.uid or message.subject)) % 10**8}"
+    workdir = make_workdir(SPOOL_DIR)
     try:
         documents = build_documents(config, message, workdir)
     except RejectedError:
@@ -220,6 +220,12 @@ def enqueue(config: AppConfig, storage: Storage, message: MailMessage) -> Job:
         f"Auftrag angenommen: {prepared.pages} Seite(n) an {prepared.number.e164}",
         job_id=job.id,
     )
+    if message.embedded:
+        storage.log_event(
+            "In den Text eingebettete Bilder (z. B. Signatur) nicht gefaxt: "
+            + ", ".join(message.embedded),
+            job_id=job.id,
+        )
     LOGGER.info(
         "Auftrag #%s angenommen: %s -> %s (%s Seiten)",
         job.id, prepared.sender, prepared.number.e164, prepared.pages,

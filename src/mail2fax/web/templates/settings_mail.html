@@ -83,11 +83,11 @@
   </div>
 
   <div class="card">
-    <h2>Postausgang (SMTP) für Statusmeldungen</h2>
+    <h2>Postausgang (SMTP) für Sende- und Fehlerberichte</h2>
     <p class="hint">Optional. Wird für Versandbestätigungen und Fehlermeldungen an den Absender genutzt.</p>
     <label class="inline">
       <input type="checkbox" name="smtp_enabled" {{ 'checked' if config.smtp.enabled }}>
-      Statusmeldungen versenden
+      Berichte per E-Mail versenden
     </label>
     <div class="row">
       <div>

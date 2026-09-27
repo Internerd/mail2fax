@@ -138,9 +138,25 @@ Nachricht wann an welche Rufnummer übergeben wurde.
 ## 8. Besonderer Hinweis zu Fehlversand
 
 Eine Ziffer im Betreff genügt, um ein Fax an den falschen Empfänger zu
-schicken. Empfehlungen:
+schicken. mail2fax ist deshalb darauf ausgelegt, **im Zweifel abzulehnen
+statt zu raten** (Einzelheiten in [RUFNUMMERN.md](RUFNUMMERN.md)):
+
+* Lässt der Betreff offen, wo die Rufnummer endet
+  (`+49 30 1234567 2 Seiten`), wird abgelehnt.
+* Enthält er mehrere verschiedene Rufnummern, wird abgelehnt.
+* Eine international geschriebene Nummer hat Vorrang vor Ziffernfolgen mit
+  führender 0, damit Aktenzeichen nicht zur Zielrufnummer werden.
+* Die Schreibweise `+49 (0)30 …` wird korrekt aufgelöst und nicht als
+  Auslandsgespräch gewählt.
+
+Der Absender erfährt jede Ablehnung per Fehlerbericht, sofern er auf der
+Whitelist steht.
+
+Zusätzliche Empfehlungen:
 
 * Die Liste `allowed_number_prefixes` eng fassen (z. B. nur `+49`).
+* `accept_national_format` abschalten, wenn nur international geschriebene
+  Nummern zählen sollen.
 * Wo möglich, mit einem festen Empfängerkreis arbeiten und die
   Mengenbegrenzung niedrig halten.
 * Vor dem Produktivbetrieb mit dem **Testbetrieb** (`dry_run`) prüfen, welche

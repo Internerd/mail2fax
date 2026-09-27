@@ -19,6 +19,7 @@ Daraus ergeben sich drei Hauptrisiken:
 | Schutzmaßnahme | Standard | Einstellung |
 |---|---|---|
 | Absender-Whitelist | **leer – nichts wird verarbeitet** | *Sicherheit* |
+| Mehrdeutige Rufnummer im Betreff | **wird abgelehnt** | – |
 | Erlaubte Vorwahlen | `+49` | *Sicherheit* |
 | Gesperrte Vorwahlen | 0900, 0137, 0180, 0181, 01900 | *Sicherheit* |
 | Faxe pro Stunde | 20 | *Sicherheit* |
@@ -35,6 +36,11 @@ zusätzlich ab:
   wird und von außen keine Mails annimmt.
 * Serverseitige Filterregeln (z. B. Sieve) einsetzen, die nur Nachrichten
   zugelassener Absender in den überwachten Ordner legen.
+
+**Platzhalter in der Whitelist sind eng begrenzt.** In der Domain ist nur ein
+führendes `*.` für Subdomains erlaubt. Einträge wie `*example.com` würden
+`boese@nichtexample.com` durchlassen und werden abgewiesen; die Domain wird
+nie per Mustervergleich, sondern exakt bzw. ab einem Punkt verglichen.
 
 Mit `dry_run: true` (*Fax → Testbetrieb*) können Sie gefahrlos beobachten,
 welche Nachrichten angenommen würden.

@@ -9,7 +9,7 @@ import pytest
 
 from mail2fax import processor
 from mail2fax.mailbox import parse_message
-from mail2fax.processor import RejectedError, build_documents, enqueue, prepare, send_job
+from mail2fax.processor import RejectedError, build_documents, cleanup_documents, enqueue, prepare, send_job
 from mail2fax.render import text_to_pdf
 from mail2fax.storage import STATUS_FAILED, STATUS_REJECTED, STATUS_SENT
 
@@ -378,3 +378,54 @@ def test_dry_run_report_is_not_confirmed(mit_postausgang, storage, spool, postfa
     assert storage.get_job(job.id).confirmed is False
     assert len(postfach) == 1
     assert "ohne Uebertragungsnachweis" in postfach[0]["subject"]
+
+
+# -- Logiktest: Signatur-Logo darf nicht gefaxt werden ----------------------
+
+
+def _mail_mit_logo(*, pdf: bytes | None = None):
+    import io
+
+    from PIL import Image
+
+    puffer = io.BytesIO()
+    Image.new("RGB", (120, 40), "navy").save(puffer, "PNG")
+    message = EmailMessage()
+    message["From"] = "chef@example.com"
+    message["Subject"] = "+49301234567"
+    message["Message-ID"] = f"<logo-{pdf is not None}@example.com>"
+    message.set_content("Sehr geehrte Damen und Herren,\nanbei unser Angebot.")
+    message.add_alternative('<p>Text</p><img src="cid:logo1@firma">', subtype="html")
+    message.get_payload()[1].add_related(
+        puffer.getvalue(), "image", "png", cid="<logo1@firma>", filename="logo.png"
+    )
+    if pdf is not None:
+        message.add_attachment(pdf, maintype="application", subtype="pdf", filename="angebot.pdf")
+    return parse_message(message.as_bytes(), uid="7")
+
+
+def test_mail_text_is_faxed_instead_of_signature_logo(config, tmp_path):
+    documents = build_documents(config, _mail_mit_logo(), tmp_path / "w")
+    assert [d.path.name for d in documents] == ["nachricht.pdf"]
+
+
+def test_pdf_is_faxed_instead_of_signature_logo(config, tmp_path):
+    pdf = text_to_pdf("Angebot", tmp_path / "angebot.pdf").path.read_bytes()
+    documents = build_documents(config, _mail_mit_logo(pdf=pdf), tmp_path / "w")
+    assert [d.name for d in documents] == ["angebot.pdf"]
+
+
+def test_skipped_embedded_images_are_noted_in_the_job(config, storage, spool):
+    job = enqueue(config, storage, _mail_mit_logo())
+    meldungen = [event["message"] for event in storage.list_events(job_id=job.id)]
+    assert any("eingebettete Bilder" in m and "logo.png" in m for m in meldungen)
+
+
+def test_each_job_gets_its_own_workdir(config, storage, spool):
+    """Zwei Auftraege in derselben Sekunde duerfen sich kein Verzeichnis teilen."""
+    erster = enqueue(config, storage, build_mail(body="eins"))
+    zweiter = enqueue(config, storage, build_mail(body="zwei"))
+    assert Path(erster.documents[0]).parent != Path(zweiter.documents[0]).parent
+
+    cleanup_documents(erster)
+    assert all(Path(p).exists() for p in zweiter.documents)

@@ -37,6 +37,9 @@ wir Sie in den Versionshinweisen.
 
 * Umgehung der Netzbeschränkung oder der Anmeldung an der Weboberfläche
 * Umgehung der Absender-Whitelist oder der Rufnummernsperren
+* Betreffzeilen, die zu einem Fax an eine **andere als die gemeinte**
+  Rufnummer führen (statt abgelehnt zu werden)
+* Berichte, die an Adressen außerhalb der Whitelist gehen
 * Offenlegung von Zugangsdaten oder Faxinhalten
 * Codeausführung über verarbeitete E-Mails oder Anhänge
 * Rechteausweitung innerhalb des Containers

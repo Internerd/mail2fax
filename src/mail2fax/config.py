@@ -22,6 +22,39 @@ from .paths import CONFIG_PATH
 LOGGER = logging.getLogger(__name__)
 
 
+_WILDCARD_CHARS = "*?["
+
+
+def whitelist_entry_problem(entry: str) -> str | None:
+    """Prueft einen Eintrag der Absender-Whitelist.
+
+    Liefert den Grund, falls der Eintrag unzulaessig ist, sonst ``None``.
+
+    Platzhalter sind im Teil vor dem @ frei erlaubt ("*@example.com",
+    "fax-*@example.com"). In der Domain dagegen nur als fuehrendes "*." fuer
+    Subdomains ("*@*.example.com"): Ein Eintrag wie "*example.com" oder
+    "*@*example.com" liesse sonst auch "boese@nichtexample.com" durch.
+    """
+    text = str(entry or "").strip().lower()
+    if text.count("@") != 1:
+        return "muss genau ein @ enthalten, z. B. chef@example.com oder *@example.com"
+    lokal, domain = text.split("@")
+    if not lokal:
+        return "der Teil vor dem @ fehlt"
+    if not domain:
+        return "die Domain nach dem @ fehlt"
+    if any(zeichen in domain for zeichen in _WILDCARD_CHARS):
+        rest = domain[2:] if domain.startswith("*.") else ""
+        if not rest or any(zeichen in rest for zeichen in _WILDCARD_CHARS):
+            return (
+                "Platzhalter sind in der Domain nur als '*.' am Anfang erlaubt, "
+                "z. B. *@*.example.com"
+            )
+        if "." not in rest:
+            return "zu weit gefasst - '*." + rest + "' umfasst beliebige fremde Domains"
+    return None
+
+
 def _as_e164_prefix(value: Any) -> str:
     """Bringt eine Vorwahlangabe in die Form "+49".
 
@@ -286,9 +319,28 @@ class SecurityConfig(BaseModel):
     @field_validator("sender_whitelist", mode="before")
     @classmethod
     def _normalise_whitelist(cls, value: Any) -> Any:
-        if isinstance(value, list):
-            return [str(item).strip().lower() for item in value if str(item).strip()]
-        return value
+        """Kleinschreibung und Pruefung der Eintraege.
+
+        Unzulaessige Eintraege werden verworfen und protokolliert. Das
+        verengt den Zugang (sichere Richtung) und verhindert, dass ein von
+        Hand eingetragenes "*example.com" fremde Domains durchlaesst. Die
+        Weboberflaeche weist solche Eintraege bereits beim Speichern ab.
+        """
+        if not isinstance(value, list):
+            return value
+        gueltig: list[str] = []
+        for item in value:
+            eintrag = str(item).strip().lower()
+            if not eintrag:
+                continue
+            problem = whitelist_entry_problem(eintrag)
+            if problem:
+                LOGGER.warning(
+                    "Whitelist-Eintrag '%s' wird ignoriert: %s", eintrag, problem
+                )
+                continue
+            gueltig.append(eintrag)
+        return gueltig
 
     @field_validator("allowed_number_prefixes", "blocked_number_prefixes", mode="before")
     @classmethod

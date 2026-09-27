@@ -21,11 +21,17 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .. import __version__
-from ..config import AppConfig, generate_secret_key, load_config, save_config
+from ..config import (
+    AppConfig,
+    generate_secret_key,
+    load_config,
+    save_config,
+    whitelist_entry_problem,
+)
 from ..fax import BACKEND_LABELS, FaxError, get_backend
 from ..mailbox import MailboxError, test_connection
 from ..notify import NotifyError, send_mail
-from ..paths import CONFIG_PATH, SPOOL_DIR, ensure_dirs
+from ..paths import CONFIG_PATH, SPOOL_DIR, ensure_dirs, make_workdir
 from ..render import text_to_pdf
 from ..rules import RuleError, check_number_allowed, normalise_number
 from ..storage import STATUS_QUEUED, Storage
@@ -497,7 +503,7 @@ def create_app(config_path: Path | None = None, *, start_worker: bool = True) ->
         except RuleError as error:
             return render(request, "settings_fax.html", message=None, error=str(error))
 
-        workdir = SPOOL_DIR / f"test-{int(time.time())}"
+        workdir = make_workdir(SPOOL_DIR, prefix="test-")
         document = text_to_pdf(
             "Dies ist ein Testfax von mail2fax.\n\n"
             f"Erzeugt am {datetime.now().strftime('%d.%m.%Y um %H:%M:%S')}.\n"
@@ -527,7 +533,21 @@ def create_app(config_path: Path | None = None, *, start_worker: bool = True) ->
         form = await request.form()
         config = current_config()
         security = config.security
-        security.sender_whitelist = _as_lines(form.get("sender_whitelist"))
+
+        eintraege = _as_lines(form.get("sender_whitelist"))
+        probleme = [
+            f"'{eintrag}': {problem}"
+            for eintrag in eintraege
+            if (problem := whitelist_entry_problem(eintrag))
+        ]
+        if probleme:
+            # Nichts speichern - ein halb uebernommener Zugriffsschutz waere
+            # schlimmer als gar keine Aenderung.
+            return render(
+                request, "settings_security.html", message=None,
+                error="Absender-Whitelist nicht gespeichert: " + "; ".join(probleme),
+            )
+        security.sender_whitelist = eintraege
         security.allowed_number_prefixes = _as_lines(form.get("allowed_prefixes"))
         security.blocked_number_prefixes = _as_lines(form.get("blocked_prefixes"))
         security.accept_national_format = form.get("accept_national") == "on"

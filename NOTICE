@@ -26,6 +26,12 @@ Lizenztexte liegen nach der Installation im jeweiligen Paketverzeichnis unter
   Pillow             MIT-CMU         https://github.com/python-pillow/Pillow
   pypdf              BSD-3-Clause    https://github.com/py-pdf/pypdf
 
+Als Systempaket installiert (nicht Bestandteil dieses Projekts):
+  DejaVu Fonts       Bitstream-Vera- und Arev-Lizenz (frei)
+                     https://dejavu-fonts.github.io/
+                     Wird fuer die aus dem Mailtext erzeugte Faxseite verwendet;
+                     im erzeugten PDF sind nur die benoetigten Zeichen enthalten.
+
 Optional, nur beim Faxversand ueber SIP (als Systempakete installiert,
 nicht Bestandteil dieses Projekts):
   Asterisk           GPL-2.0         https://www.asterisk.org/

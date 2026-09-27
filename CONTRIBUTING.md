@@ -68,7 +68,13 @@ shellcheck mail2fax.sh install/*.sh         # Shell-Skripte
 
 Bei Änderungen an Authentifizierung, Netzbeschränkung, Rufnummernprüfung oder
 dem Umgang mit Zugangsdaten bitte im Pull Request ausdrücklich beschreiben,
-was sich am Verhalten ändert. Diese Stellen sind bewusst restriktiv gehalten –
+was sich am Verhalten ändert.
+
+Für die Rufnummernerkennung gilt: **im Zweifel ablehnen statt raten.** Neue
+Schreibweisen dürfen nur dann akzeptiert werden, wenn sie keine zweite
+Lesart zulassen. Die Beispiele in `docs/RUFNUMMERN.md` werden von
+`tests/test_docs.py` gegen den Code geprüft – neue Fälle gehören dort in die
+Tabelle. Diese Stellen sind bewusst restriktiv gehalten –
 Lockerungen brauchen eine Begründung.
 
 ## Ein neues Fax-Backend beisteuern
@@ -76,6 +82,11 @@ Lockerungen brauchen eine Begründung.
 1. Neue Datei unter `src/mail2fax/fax/`, Klasse von `FaxBackend` ableiten.
 2. `send()` umsetzen; `FaxError(..., permanent=True)` für Fehler, bei denen
    ein weiterer Versuch zwecklos ist.
+   **`FaxResult.confirmed` nur setzen, wenn die Gegenstelle den Empfang
+   tatsächlich quittiert hat.** Davon hängt ab, ob der Absender einen
+   Sendebericht mit Übertragungsnachweis erhält (siehe
+   [docs/SENDEBERICHTE.md](docs/SENDEBERICHTE.md)). Ein Backend, das den
+   Auftrag nur weiterreicht, darf das nicht behaupten.
 3. `test()` für den Verbindungstest in der Oberfläche umsetzen.
 4. Konfigurationsmodell in `config.py` ergänzen.
 5. In `fax/__init__.py` registrieren und in `settings_fax.html` ein

@@ -9,7 +9,9 @@
     <h2>Absender-Whitelist</h2>
     <p class="hint">
       Nur Nachrichten dieser Absender lösen einen Faxversand aus – eine Adresse pro Zeile.
-      Platzhalter sind erlaubt: <code>*@example.com</code>, <code>fax-*@example.com</code>.
+      Platzhalter sind vor dem @ erlaubt: <code>*@example.com</code>, <code>fax-*@example.com</code>.
+      In der Domain nur für Subdomains: <code>*@*.example.com</code> (passt auf
+      <code>abt.example.com</code>, nicht auf <code>example.com</code> selbst).
       <strong>Ist die Liste leer, wird keine Nachricht verarbeitet.</strong>
     </p>
     <textarea name="sender_whitelist" spellcheck="false">{{ config.security.sender_whitelist | join('\n') }}</textarea>

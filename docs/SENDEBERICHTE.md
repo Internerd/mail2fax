@@ -130,7 +130,7 @@ Weboberfläche → **E-Mail → Postausgang**:
 
 | Einstellung | Wirkung |
 |---|---|
-| Statusmeldungen versenden (`smtp.enabled`) | Grundschalter für allen Postausgang |
+| Berichte per E-Mail versenden (`smtp.enabled`) | Grundschalter für allen Postausgang |
 | Berichte an den Absender (`smtp.notify_sender`) | Sende- und Fehlerberichte an gelistete Absender |
 | Auch ohne Nachweis berichten (`smtp.report_unconfirmed`) | Übergabebestätigungen zulassen |
 | Adresse für Fehlermeldungen (`smtp.admin_address`) | Kopie aller endgültigen Fehler |

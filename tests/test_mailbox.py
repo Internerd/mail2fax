@@ -82,3 +82,68 @@ def test_missing_headers_do_not_crash():
     assert parsed.subject == "Test"
     assert parsed.sender == ""
     assert parsed.message_id is None
+
+
+# -- Logiktest: eingebettete Bilder sind kein Anhang ------------------------
+
+
+def _logo() -> bytes:
+    import io
+
+    from PIL import Image
+
+    puffer = io.BytesIO()
+    Image.new("RGB", (120, 40), "navy").save(puffer, "PNG")
+    return puffer.getvalue()
+
+
+def _outlook_mail(*, pdf: bytes | None = None, logo_als_attachment: bool = False):
+    """HTML-Mail mit Signatur-Logo, wie Outlook oder Apple Mail sie erzeugen."""
+    message = make()
+    message.set_content("Sehr geehrte Damen und Herren,\nanbei unser Angebot.")
+    message.add_alternative(
+        '<p>Sehr geehrte Damen und Herren,</p><img src="cid:logo1@firma">', subtype="html"
+    )
+    message.get_payload()[1].add_related(
+        _logo(), "image", "png", cid="<logo1@firma>", filename="logo.png",
+        disposition="attachment" if logo_als_attachment else "inline",
+    )
+    if pdf is not None:
+        message.add_attachment(pdf, maintype="application", subtype="pdf", filename="angebot.pdf")
+    return parse_message(message.as_bytes())
+
+
+def test_signature_logo_is_not_an_attachment():
+    parsed = _outlook_mail()
+    assert parsed.attachments == []
+    assert parsed.embedded == ["logo.png"]
+
+
+def test_signature_logo_does_not_hide_real_attachment():
+    parsed = _outlook_mail(pdf=b"%PDF-1.4 inhalt")
+    assert [a.filename for a in parsed.attachments] == ["angebot.pdf"]
+    assert parsed.embedded == ["logo.png"]
+
+
+def test_referenced_image_counts_as_embedded_even_if_marked_attachment():
+    """Outlook markiert Signaturbilder mitunter als "attachment" - der cid-Verweis zaehlt."""
+    parsed = _outlook_mail(logo_als_attachment=True)
+    assert parsed.attachments == []
+
+
+def test_apple_mail_inline_attachment_is_still_an_attachment():
+    """Apple Mail kennzeichnet echte Anhaenge als "inline", bindet sie aber nicht per cid ein."""
+    message = make()
+    message.set_content("Hier der Scan.")
+    message.add_attachment(_logo(), maintype="image", subtype="png", filename="scan.png", disposition="inline")
+    parsed = parse_message(message.as_bytes())
+    assert [a.filename for a in parsed.attachments] == ["scan.png"]
+    assert parsed.embedded == []
+
+
+def test_url_encoded_cid_reference_is_recognised():
+    message = make()
+    message.set_content("Text")
+    message.add_alternative('<img src="cid:logo%40firma">', subtype="html")
+    message.get_payload()[1].add_related(_logo(), "image", "png", cid="<logo@firma>", filename="logo.png")
+    assert parse_message(message.as_bytes()).attachments == []

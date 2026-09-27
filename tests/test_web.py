@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -578,3 +580,53 @@ def test_dashboard_has_no_warning_for_sip(angemeldet, config_file):
     save_config(config, config_file)
     seite = angemeldet.get("/").text
     assert "keine Quittung der Gegenstelle" not in seite
+
+
+# -- Logiktest: Whitelist-Formular und Testfaxe -----------------------------
+
+
+def _sicherheit(**felder):
+    daten = {
+        "allowed_prefixes": "+49", "blocked_prefixes": "+49900", "country_code": "+49",
+        "rate_limit": "20", "rate_limit_sender": "10", "allowed_networks": "127.0.0.0/8",
+        "session_timeout": "120", "retention": "90",
+    }
+    daten.update(felder)
+    return daten
+
+
+def test_unsafe_whitelist_entry_is_refused_and_nothing_saved(angemeldet, config_file):
+    vorher = load_config(config_file).security.sender_whitelist
+    response = angemeldet.post(
+        "/einstellungen/sicherheit",
+        data=_sicherheit(sender_whitelist="neu@example.com\n*example.com"),
+    )
+    assert "nicht gespeichert" in response.text
+    assert "*example.com" in response.text
+    assert load_config(config_file).security.sender_whitelist == vorher
+
+
+def test_subdomain_whitelist_entry_is_saved(angemeldet, config_file):
+    angemeldet.post(
+        "/einstellungen/sicherheit",
+        data=_sicherheit(sender_whitelist="chef@example.com\n*@*.intern.example.com"),
+    )
+    assert load_config(config_file).security.sender_whitelist == [
+        "chef@example.com", "*@*.intern.example.com"
+    ]
+
+
+def test_quick_successive_test_faxes_do_not_share_documents(angemeldet, client):
+    """Zweimal schnell "Testfax senden": Frueher teilten sich beide ein Verzeichnis."""
+    from mail2fax.processor import cleanup_documents
+
+    for _ in range(2):
+        angemeldet.post(
+            "/einstellungen/fax/testfax", data={"test_number": "+49301234567"}, follow_redirects=False
+        )
+    storage = client.app.state.storage
+    erster, zweiter = sorted(storage.list_jobs(), key=lambda job: job.id)[-2:]
+    assert erster.documents != zweiter.documents
+
+    cleanup_documents(erster)
+    assert all(Path(pfad).exists() for pfad in zweiter.documents)

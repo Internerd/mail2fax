@@ -69,6 +69,7 @@ Das Skript legt an:
 
 | Pfad | Inhalt |
 |---|---|
+| Paket `fonts-dejavu-core` | Schrift für Sonderzeichen auf der Textseite (ł, ř, ş, Kyrillisch) |
 | `/opt/mail2fax/venv` | Python-Umgebung mit der Anwendung |
 | `/etc/mail2fax/config.yaml` | Konfiguration (Rechte `0640`) |
 | `/var/lib/mail2fax/` | Auftragsdatenbank und Spool-Verzeichnis |
@@ -146,10 +147,12 @@ geschieht: als gelesen markieren, in einen Ordner verschieben oder löschen.
 „Verschieben" ist übersichtlich, weil abgelehnte Nachrichten in einem eigenen
 Ordner landen.
 
-### 4. Statusmeldungen einrichten (optional)
+### 4. Sende- und Fehlerberichte einrichten (optional)
 
-**E-Mail → Postausgang (SMTP).** Damit erhält der Absender eine Rückmeldung,
-ob sein Fax versendet wurde – und der Administrator eine Meldung bei Fehlern.
+**E-Mail → Postausgang (SMTP).** Damit erhält der Absender einen Sende- oder
+Fehlerbericht – aber nur, wenn er auf der Whitelist steht – und der
+Administrator eine Meldung bei Fehlern. Einzelheiten:
+[SENDEBERICHTE.md](SENDEBERICHTE.md)
 
 ### 5. Versandweg einrichten
 

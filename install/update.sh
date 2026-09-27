@@ -42,6 +42,13 @@ SOURCE_DIR="$(find "${TMP_DIR}" -maxdepth 1 -type d -name 'mail2fax-*' | head -n
 [ -n "${SOURCE_DIR}" ] || die "Archiv enthaelt kein Quellverzeichnis."
 
 # --- Installation ----------------------------------------------------------
+# Seit 1.1 fuer Sonderzeichen auf dem Fax noetig (siehe install.sh).
+if ! dpkg -s fonts-dejavu-core >/dev/null 2>&1; then
+  info "Installiere die Schrift DejaVu Sans ..."
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends fonts-dejavu-core >/dev/null \
+    || echo "${YELLOW}Hinweis:${RESET} fonts-dejavu-core konnte nicht installiert werden."
+fi
+
 info "Stoppe den Dienst ..."
 systemctl stop mail2fax || true
 

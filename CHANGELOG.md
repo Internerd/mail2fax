@@ -5,6 +5,65 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unveröffentlicht]
 
+### Behoben – Ergebnisse des Logiktests
+
+Die Kernlogik wurde mit realistischen Eingaben systematisch geprüft. Dabei
+fielen Fehler auf, die zu einem **falschen Empfänger** oder **falschen
+Inhalt** geführt hätten. Für jeden gibt es jetzt einen Regressionstest.
+
+**Rufnummer im Betreff** – Grundsatz jetzt: *im Zweifel ablehnen statt raten*.
+
+- `+49 (0)30 1234567` wurde zu `+490301234567` und an der Anlage als
+  `00301234567` gewählt – ein Anruf nach Griechenland. Die Schreibweise `(0)`
+  wird nun aufgelöst, ebenso der Tippfehler `+49030…`.
+- Stand vor der Rufnummer ein Aktenzeichen mit führender 0
+  (`Rechnung 0123456 an +49 30 1234567`), wurde an das Aktenzeichen gefaxt.
+  Eine international geschriebene Nummer hat jetzt Vorrang; zu kurze
+  Ziffernfolgen gelten nicht mehr als Rufnummer.
+- Ziffern hinter der Rufnummer wurden angehängt: `+49 30 1234567 2 Seiten`
+  wurde zu `+493012345672`. Lässt der Betreff offen, wo die Nummer endet,
+  wird jetzt abgelehnt – mit beiden Lesarten im Fehlerbericht.
+- Mehrere verschiedene Rufnummern im Betreff führen zur Ablehnung statt zur
+  ersten Fundstelle.
+- Auslandsnummern wurden bei nationaler Wahl mit `+` an die Anlage übergeben;
+  jetzt mit `00`.
+- Höchstlänge nach E.164 (15 Ziffern) statt 18.
+
+**Inhalt des Faxes**
+
+- Ein **Signatur-Logo wurde als Anhang gefaxt** – statt des Mailtextes und
+  sogar statt eines beigefügten PDFs. Bilder, auf die der HTML-Text per
+  `cid:` verweist, gelten jetzt als Teil des Textes. Echte Anhänge (auch
+  Apple Mails „inline“-Anhänge) bleiben Anhänge.
+- Text wurde nach Zeichenzahl umbrochen; breite Zeichen liefen über den
+  rechten Rand und **fehlten auf dem Fax**. Umbrochen wird jetzt nach der
+  gemessenen Breite.
+- Zeichen wie ł, ř, ş und kyrillische Schrift kamen als **schwarze
+  Kästchen** an. Die Textseite wird jetzt in DejaVu Sans gesetzt; der
+  Installer richtet `fonts-dejavu-core` ein, das Update-Skript holt es nach.
+
+**Absender-Whitelist**
+
+- Ein Eintrag wie `*example.com` ließ auch `boese@nichtexample.com` durch.
+  Platzhalter sind in der Domain nur noch als führendes `*.` erlaubt; die
+  Domain wird exakt verglichen. Unsichere Einträge weist die Weboberfläche
+  beim Speichern ab, eine von Hand bearbeitete Datei verwirft sie beim Laden.
+
+**Betrieb**
+
+- Zwei Testfaxe in derselben Sekunde teilten sich ein Arbeitsverzeichnis;
+  das Aufräumen des ersten löschte die Dokumente des zweiten. Jeder Auftrag
+  erhält nun ein eindeutiges Verzeichnis.
+
+### Hinzugefügt
+
+- [docs/RUFNUMMERN.md](docs/RUFNUMMERN.md): vollständige Regeln der
+  Rufnummernerkennung mit Beispielen
+- Ein Test liest die Beispieltabellen aus `docs/RUFNUMMERN.md` und dem README
+  und prüft sie gegen den Code – die Dokumentation kann nicht mehr
+  unbemerkt veralten
+
+
 ### Hinzugefügt
 
 - **Sendebericht mit Übertragungsnachweis.** Beim Versandweg SIP wertet

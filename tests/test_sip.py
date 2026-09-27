@@ -406,3 +406,17 @@ def test_partially_transmitted_pages_appear_in_the_error():
 
     with pytest.raises(FaxError, match="nach 2 uebertragener"):
         SipBackend._evaluate(AmiMessage({"status": "FAILED", "pages": "2", "detail": "Abbruch"}))
+
+
+def test_foreign_number_is_dialled_with_00(config):
+    """An der Anlage ist "+" oft nicht waehlbar - Auslandsnummern beginnen mit 00."""
+    config.fax.sip.dial_national = True
+    assert SipBackend(config).dial_string(Number("+431234567")) == "00431234567"
+
+
+def test_trunk_zero_notation_is_not_dialled_abroad(config):
+    """"+49 (0)30 1234567" wurde frueher als 0030… gewaehlt - also nach Griechenland."""
+    from mail2fax.rules import extract_number
+
+    nummer = extract_number("+49 (0)30 1234567", config.security)
+    assert SipBackend(config).dial_string(nummer) == "0301234567"

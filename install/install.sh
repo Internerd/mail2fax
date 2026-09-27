@@ -33,11 +33,13 @@ WITH_LIBREOFFICE="${MAIL2FAX_LIBREOFFICE:-no}"
 info "Installiere Systempakete ..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
+# fonts-dejavu-core: ohne sie kaemen Zeichen wie ł, ř, ş oder Kyrillisch als
+# Kaestchen auf dem Fax an (die PDF-Standardschrift kennt nur Westeuropa).
 apt-get install -y -qq --no-install-recommends \
-  python3 python3-venv python3-pip ca-certificates curl tar >/dev/null
+  python3 python3-venv python3-pip ca-certificates curl tar fonts-dejavu-core >/dev/null
 if [ "${WITH_LIBREOFFICE}" = "yes" ]; then
   info "Installiere LibreOffice fuer die Wandlung von Office-Dokumenten ..."
-  apt-get install -y -qq --no-install-recommends libreoffice-core libreoffice-writer fonts-dejavu-core >/dev/null
+  apt-get install -y -qq --no-install-recommends libreoffice-core libreoffice-writer >/dev/null
 fi
 ok "Systempakete installiert"
 

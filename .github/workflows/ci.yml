@@ -34,7 +34,7 @@ jobs:
       - name: Ghostscript installieren
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ghostscript
+          sudo apt-get install -y -qq ghostscript fonts-dejavu-core
 
       - name: Abhaengigkeiten installieren
         run: |

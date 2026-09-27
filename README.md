@@ -38,8 +38,8 @@ ausschließlich aus dem lokalen Netz erreichbar ist.
 | Bereich | Umsetzung |
 |---|---|
 | Posteingang | IMAP (SSL/TLS, STARTTLS), einstellbares Abfrageintervall |
-| Faxinhalt | Anhang bevorzugt (PDF, Bilder, Text; optional Office über LibreOffice), sonst der Mailtext als PDF |
-| Zielrufnummer | aus dem Betreff, z. B. `+49301234567` – auch `0301234567` oder `030/123 4567` |
+| Faxinhalt | Anhang bevorzugt (PDF, Bilder, Text; optional Office über LibreOffice), sonst der Mailtext als PDF; Signatur-Logos werden erkannt und übergangen |
+| Zielrufnummer | aus dem Betreff, z. B. `+49301234567` – mehrdeutige Betreffzeilen werden abgelehnt statt geraten |
 | Zugangsschutz | Absender-Whitelist (Pflicht), Rufnummernsperren, Mengenbegrenzung |
 | Versandwege | SIP (FRITZ!Box/TK-Anlage), HylaFAX, Fax-per-E-Mail-Gateway, beliebiges Kommando |
 | Weboberfläche | Konfiguration, Auftragsübersicht, Protokoll, Tests – nur im lokalen Netz |
@@ -95,6 +95,8 @@ Anhang:   rechnung.pdf
 
 * **Mit Anhang** → der Anhang wird gefaxt.
 * **Ohne Anhang** → der Text der E-Mail wird gesetzt und gefaxt.
+* **In den Text eingebettete Bilder** – etwa das Logo in der Signatur – gelten
+  nicht als Anhang und werden nicht gefaxt.
 
 Erkannt werden unter anderem:
 
@@ -102,9 +104,17 @@ Erkannt werden unter anderem:
 |---|---|
 | `+49301234567` | `+49301234567` |
 | `Fax an +49 30 123 4567` | `+49301234567` |
+| `+49 (0)30 1234567` | `+49301234567` |
 | `030/1234567 – Angebot` | `+49301234567` |
-| `0049 30 1234567` | `+49301234567` |
+| `Rechnung 0123456 an +49 30 1234567` | `+49301234567` |
+| `+49 30 1234567 2 Seiten` | abgelehnt (nicht eindeutig, wo die Nummer endet) |
+| `+49 30 1234567 oder +49 40 7654321` | abgelehnt (mehrere Rufnummern) |
 | `Rechnung Nr. 12` | abgelehnt (keine Rufnummer) |
+
+**Im Zweifel lehnt mail2fax ab, statt zu raten** – ein Fax an die falsche
+Nummer wäre eine Datenpanne. Der Absender erfährt per Fehlerbericht, warum.
+Am sichersten ist die Schreibweise ohne Leerzeichen: `+49301234567`.
+Alle Regeln: **[docs/RUFNUMMERN.md](docs/RUFNUMMERN.md)**
 
 ## Versandwege
 
@@ -174,6 +184,8 @@ Einzelheiten und Beispieltexte: **[docs/SENDEBERICHTE.md](docs/SENDEBERICHTE.md)
   Mailserver oder nutzen Sie ein nur intern erreichbares Postfach.
 * **Rufnummernsperren** verhindern standardmäßig Faxe an Sonderrufnummern
   (0900, 0137, 0180 …).
+* **Kein Raten bei der Rufnummer.** Ist der Betreff mehrdeutig, wird
+  abgelehnt statt an eine vielleicht falsche Nummer gefaxt.
 * **Mengenbegrenzung** bremst Fehlkonfigurationen und Mailschleifen aus.
 * Der Dienst läuft als eigener Systembenutzer mit abgesicherter systemd-Unit.
 

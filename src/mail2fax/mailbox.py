@@ -49,6 +49,9 @@ class MailMessage:
     text: str
     attachments: list[Attachment] = field(default_factory=list)
     raw_size: int = 0
+    #: In den Text eingebettete Bilder (Signatur-Logos u. ae.), die bewusst
+    #: nicht als Anhang gelten.
+    embedded: list[str] = field(default_factory=list)
 
 
 def _decode(value: str | None) -> str:
@@ -96,13 +99,61 @@ def _body_text(message: Message) -> str:
     return ""
 
 
-def _attachments(message: Message) -> list[Attachment]:
+#: Verweise auf eingebettete Inhalte im HTML, z. B. <img src="cid:logo@01D9">.
+_CID_REFERENCE = re.compile(r"cid:([^\"'\s>)]+)", re.IGNORECASE)
+
+
+def _referenced_content_ids(message: Message) -> set[str]:
+    """Content-IDs, auf die der HTML-Text verweist.
+
+    Solche Teile sind Bestandteil des Nachrichtentextes - typischerweise das
+    Logo in der Signatur - und kein Anhang. Das gilt unabhaengig davon, ob
+    der Absender sie als "inline" oder "attachment" markiert hat; Outlook
+    tut mitunter beides.
+    """
+    from urllib.parse import unquote
+
+    ids: set[str] = set()
+    for part in message.walk():
+        if part.get_content_type() != "text/html":
+            continue
+        payload = part.get_payload(decode=True)
+        if not payload:
+            continue
+        charset = part.get_content_charset() or "utf-8"
+        try:
+            html_text = payload.decode(charset, errors="replace")
+        except LookupError:  # pragma: no cover - unbekannter Zeichensatz
+            html_text = payload.decode("utf-8", errors="replace")
+        for match in _CID_REFERENCE.finditer(html_text):
+            ids.add(unquote(match.group(1)).strip("<>").strip().lower())
+    return ids
+
+
+def _content_id(part: Message) -> str:
+    return (part.get("Content-ID") or "").strip().strip("<>").strip().lower()
+
+
+def _attachments(message: Message) -> tuple[list[Attachment], list[str]]:
+    """Echte Anhaenge und - getrennt davon - eingebettete Bilder.
+
+    Eingebettet heisst: Der HTML-Text verweist per ``cid:`` auf den Teil.
+    Signatur-Logos werden so nicht faelschlich als Anhang gefaxt. Echte
+    Anhaenge werden nie per ``cid:`` eingebunden - auch nicht bei Apple Mail,
+    das sie als "inline" kennzeichnet.
+    """
+    eingebettet_ids = _referenced_content_ids(message)
     result: list[Attachment] = []
+    eingebettet: list[str] = []
     for index, part in enumerate(message.walk(), start=1):
         if part.get_content_maintype() == "multipart":
             continue
         disposition = (part.get_content_disposition() or "").lower()
         filename = _decode(part.get_filename())
+        content_id = _content_id(part)
+        if content_id and content_id in eingebettet_ids:
+            eingebettet.append(filename or content_id)
+            continue
         if disposition != "attachment" and not filename:
             continue
         payload = part.get_payload(decode=True)
@@ -114,7 +165,7 @@ def _attachments(message: Message) -> list[Attachment]:
         # Pfadanteile aus dem Dateinamen entfernen (Schutz vor Path Traversal).
         filename = filename.replace("\\", "/").split("/")[-1].strip() or f"anhang-{index}.bin"
         result.append(Attachment(filename=filename, content=payload))
-    return result
+    return result, eingebettet
 
 
 def parse_message(raw: bytes, uid: str = "") -> MailMessage:
@@ -125,6 +176,7 @@ def parse_message(raw: bytes, uid: str = "") -> MailMessage:
         date_text = parsedate_to_datetime(date_header).strftime("%d.%m.%Y %H:%M")
     except (TypeError, ValueError):
         date_text = _decode(date_header)
+    attachments, embedded = _attachments(message)
     return MailMessage(
         uid=uid,
         message_id=(message.get("Message-ID") or "").strip() or None,
@@ -132,8 +184,9 @@ def parse_message(raw: bytes, uid: str = "") -> MailMessage:
         subject=_decode(message.get("Subject")),
         date=date_text,
         text=_body_text(message),
-        attachments=_attachments(message),
+        attachments=attachments,
         raw_size=len(raw),
+        embedded=embedded,
     )
 
 

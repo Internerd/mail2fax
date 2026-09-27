@@ -167,3 +167,79 @@ def test_pdf_to_tiff_rejects_unknown_resolution(tmp_path):
     quelle = text_to_pdf("Inhalt", tmp_path / "quelle.pdf").path
     with _pytest.raises(RenderError, match=r"[Aa]ufloesung"):
         pdf_to_tiff(quelle, tmp_path / "fax.tif", resolution="gibtsnicht")
+
+
+# -- Logiktest: nichts darf am Rand verloren gehen -------------------------
+
+
+@_pytest.mark.parametrize(
+    "text",
+    [
+        "GROSSBUCHSTABEN WIE IN EINER UEBERSCHRIFT ODER EINEM AKTENZEICHEN WERDEN BREIT " * 3,
+        "W" * 300,
+        "https://example.com/" + "sehr-langer-pfad/" * 20,
+        "   eingerueckter Absatz mit etwas Text " * 5,
+        "Normaler Fliesstext. " * 40,
+    ],
+)
+def test_no_line_exceeds_the_printable_width(text):
+    """Frueher wurde nach Zeichenzahl umgebrochen - breite Zeichen liefen ueber den Rand."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    from mail2fax.render import TEXT_WIDTH, _wrap, font_name
+
+    zeilen = _wrap(text)
+    for zeile in zeilen:
+        assert stringWidth(zeile, font_name(), 10) <= TEXT_WIDTH + 0.01, zeile
+    # Kein Zeichen darf beim Umbruch verloren gehen.
+    assert "".join(text.split()) == "".join("".join(zeilen).split())
+
+
+def test_indentation_is_kept():
+    from mail2fax.render import _wrap
+
+    assert _wrap("    eingerueckt")[0].startswith("    ")
+
+
+def test_empty_lines_are_kept():
+    from mail2fax.render import _wrap
+
+    assert _wrap("oben\n\nunten") == ["oben", "", "unten"]
+
+
+_DEJAVU = any(__import__("pathlib").Path(p).is_file() for p in __import__(
+    "mail2fax.render", fromlist=["FONT_CANDIDATES"]).FONT_CANDIDATES)
+
+
+@_pytest.mark.skipif(not _DEJAVU, reason="DejaVu Sans ist nicht installiert")
+def test_dejavu_is_used_when_available():
+    from mail2fax.render import font_name
+
+    assert font_name() == "DejaVuSans"
+
+
+@needs_ghostscript
+@_pytest.mark.skipif(not _DEJAVU, reason="DejaVu Sans ist nicht installiert")
+@_pytest.mark.parametrize(
+    ("ascii_text", "text"),
+    [("Lodz Dvorak Sisli", "Łódź Dvořák Şişli"), ("Ivanov Petrova", "Иванов Петрова")],
+)
+def test_foreign_letters_arrive_as_letters(tmp_path, ascii_text, text):
+    """Ł, ř, ş oder Kyrillisch kamen als schwarze Kaestchen beim Empfaenger an.
+
+    Kaestchen erkennt man an der Tinte: Sie verbrauchen ein Vielfaches der
+    Schwaerzung eines Buchstabens.
+    """
+    from PIL import Image
+
+    from mail2fax.render import pdf_to_tiff
+
+    def tinte(inhalt: str, name: str) -> int:
+        pdf = text_to_pdf(inhalt, tmp_path / f"{name}.pdf").path
+        with Image.open(pdf_to_tiff(pdf, tmp_path / f"{name}.tif").path) as bild:
+            graustufen = bild.convert("L")
+            # Histogramm statt getdata(): versionsunabhaengig in Pillow
+            return sum(graustufen.crop((0, 100, 1728, 400)).histogram()[:128])
+
+    faktor = tinte(text, "probe") / tinte(ascii_text, "ascii")
+    assert faktor < 1.6, f"Verdacht auf Ersatzkaestchen (Faktor {faktor:.2f})"
