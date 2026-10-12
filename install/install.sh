@@ -17,7 +17,8 @@ export LANG=C.UTF-8 LC_ALL=C.UTF-8
 unset LANGUAGE
 
 REPO_RAW="${MAIL2FAX_REPO_RAW:-https://raw.githubusercontent.com/Internerd/mail2fax/main}"
-REPO_TARBALL="${MAIL2FAX_REPO_TARBALL:-https://github.com/Internerd/mail2fax/archive/refs/heads/main.tar.gz}"
+REPO_SLUG="${MAIL2FAX_REPO_SLUG:-Internerd/mail2fax}"
+REPO_TARBALL="${MAIL2FAX_REPO_TARBALL:-https://github.com/${REPO_SLUG}/archive/refs/heads/main.tar.gz}"
 APP_DIR="/opt/mail2fax"
 CONFIG_DIR="/etc/mail2fax"
 DATA_DIR="/var/lib/mail2fax"
@@ -34,6 +35,34 @@ die()   { echo "${RED}FEHLER${RESET} $*" >&2; exit 1; }
 command -v apt-get >/dev/null 2>&1 || die "Dieses Skript setzt ein Debian- oder Ubuntu-System voraus."
 
 WITH_LIBREOFFICE="${MAIL2FAX_LIBREOFFICE:-no}"
+
+# --- Verwaltung aus der Weboberflaeche ------------------------------------
+# Update und Asterisk-Einrichtung brauchen root. Die Weboberflaeche legt nur
+# eine Anforderungsdatei an; eine Pfad-Unit startet daraufhin ein
+# root-eigenes Skript (siehe src/mail2fax/admin.py). Die Skripte liegen
+# ausserhalb von /opt/mail2fax und gehoeren root - der Webdienst kann sie
+# weder aendern noch austauschen.
+install_admin_helpers() {
+  local quelle="$1" ziel=/usr/local/lib/mail2fax skript tmp unit
+  install -d -o root -g root -m 0755 "${ziel}"
+  for skript in update sip-setup; do
+    [ -f "${quelle}/install/${skript}.sh" ] || continue
+    # Erst kopieren, dann umbenennen: Laeuft das Skript gerade selbst (Update
+    # aus der Weboberflaeche), liest bash ungestoert die alte Datei weiter.
+    tmp="$(mktemp "${ziel}/.${skript}.XXXXXX")"
+    install -o root -g root -m 0755 "${quelle}/install/${skript}.sh" "${tmp}"
+    mv -f "${tmp}" "${ziel}/${skript}.sh"
+  done
+  for unit in mail2fax-aktion@.service mail2fax-update.path mail2fax-sip-setup.path; do
+    [ -f "${quelle}/systemd/${unit}" ] && install -m 0644 "${quelle}/systemd/${unit}" "/etc/systemd/system/${unit}"
+  done
+  install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 0750 "${DATA_DIR}/control"
+  # Status und Protokoll der Aktionen: root schreibt, mail2fax liest nur.
+  install -d -o root -g "${SERVICE_USER}" -m 0750 /var/lib/mail2fax-admin
+  systemctl daemon-reload
+  systemctl enable --now mail2fax-update.path mail2fax-sip-setup.path >/dev/null 2>&1 \
+    || warn "Pfad-Units fuer die Verwaltung aus der Weboberflaeche nicht aktiv"
+}
 
 # --- Pakete ----------------------------------------------------------------
 info "Installiere Systempakete ..."
@@ -62,6 +91,7 @@ mkdir -p "${APP_DIR}" "${CONFIG_DIR}" "${DATA_DIR}"
 # Checkout gestartet wurde, wird von dort installiert; sonst von GitHub.
 SCRIPT_PATH="${BASH_SOURCE[0]:-}"
 SOURCE_DIR=""
+REVISION=""
 SCRIPT_DIR=""
 if [ -n "${SCRIPT_PATH}" ] && [ -f "${SCRIPT_PATH}" ]; then
   SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" && pwd)"
@@ -74,8 +104,18 @@ else
   info "Lade Quellcode von GitHub ..."
   TMP_DIR="$(mktemp -d)"
   trap 'rm -rf "${TMP_DIR}"' EXIT
-  curl -fsSL "${REPO_TARBALL}" -o "${TMP_DIR}/mail2fax.tar.gz" \
-    || die "Quellcode konnte nicht geladen werden (${REPO_TARBALL})"
+  # Den neuesten Stand als festen Commit aufloesen, damit sich spaeter sagen
+  # laesst, was installiert ist (Anzeige in der Weboberflaeche).
+  REVISION="$(curl -fsSL -H 'Accept: application/vnd.github+json' \
+      "https://api.github.com/repos/${REPO_SLUG}/commits/main" 2>/dev/null \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["sha"], d["commit"]["committer"]["date"])' \
+      2>/dev/null || true)"
+  TARBALL="${REPO_TARBALL}"
+  if [ -n "${REVISION}" ]; then
+    TARBALL="https://github.com/${REPO_SLUG}/archive/${REVISION%% *}.tar.gz"
+  fi
+  curl -fsSL "${TARBALL}" -o "${TMP_DIR}/mail2fax.tar.gz" \
+    || die "Quellcode konnte nicht geladen werden (${TARBALL})"
   tar -xzf "${TMP_DIR}/mail2fax.tar.gz" -C "${TMP_DIR}"
   SOURCE_DIR="$(find "${TMP_DIR}" -maxdepth 1 -type d -name 'mail2fax-*' | head -n1)"
   [ -n "${SOURCE_DIR}" ] || die "Entpacktes Archiv enthaelt kein Quellverzeichnis."
@@ -116,8 +156,19 @@ else
   warn "Bestehende Konfiguration ${CONFIG_DIR}/config.yaml bleibt unveraendert"
 fi
 
+# Stand vermerken (lokale Installation: Commit des Checkouts, falls vorhanden)
+if [ -z "${REVISION}" ] && command -v git >/dev/null 2>&1 && git -C "${SOURCE_DIR}" rev-parse HEAD >/dev/null 2>&1; then
+  REVISION="$(git -C "${SOURCE_DIR}" log -1 --format='%H %cI')"
+fi
+echo "${REVISION:-unbekannt}" > "${APP_DIR}/REVISION"
+
 # Rechte: nur root und der Dienstbenutzer duerfen die Zugangsdaten sehen.
-chown -R "${SERVICE_USER}:${SERVICE_USER}" "${CONFIG_DIR}" "${DATA_DIR}" "${APP_DIR}"
+# Programmcode (/opt/mail2fax) gehoert root: Der Dienst muss ihn nur lesen.
+# Gehoerte er dem Dienstbenutzer, koennte ein kompromittierter Dienst Code
+# hinterlegen, den root beim naechsten Update ausfuehrt.
+chown -R "${SERVICE_USER}:${SERVICE_USER}" "${CONFIG_DIR}" "${DATA_DIR}"
+chown -R root:root "${APP_DIR}"
+chmod 0755 "${APP_DIR}"
 chmod 0750 "${CONFIG_DIR}" "${DATA_DIR}"
 [ -f "${CONFIG_DIR}/config.yaml" ] && chmod 0640 "${CONFIG_DIR}/config.yaml"
 
@@ -131,6 +182,7 @@ else
 fi
 systemctl daemon-reload
 systemctl enable --now mail2fax >/dev/null 2>&1 || die "Dienst konnte nicht gestartet werden (journalctl -u mail2fax)."
+install_admin_helpers "${SOURCE_DIR}"
 
 sleep 3
 if ! systemctl is-active --quiet mail2fax; then

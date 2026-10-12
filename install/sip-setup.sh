@@ -132,13 +132,18 @@ sleep 5
 systemctl is-active --quiet asterisk || die "Asterisk laeuft nicht (journalctl -u asterisk)."
 ok "Asterisk laeuft"
 
-# mail2fax darf in sein Asterisk-Verzeichnis schreiben.
+# mail2fax darf in sein Asterisk-Verzeichnis schreiben (ReadWritePaths).
 if [ -f /etc/systemd/system/mail2fax.service ] && \
    ! grep -q 'asterisk/mail2fax' /etc/systemd/system/mail2fax.service; then
   sed -i 's|^ReadWritePaths=.*|& -/etc/asterisk/mail2fax|' /etc/systemd/system/mail2fax.service
   systemctl daemon-reload
+fi
+# Immer neu starten: systemd blendet ein Verzeichnis aus ReadWritePaths nur
+# ein, wenn es beim Start des Dienstes schon existiert. Ohne Neustart meldet
+# die Weboberflaeche "Read-only file system".
+if systemctl is-active --quiet mail2fax; then
   systemctl restart mail2fax || warn "mail2fax konnte nicht neu gestartet werden"
-  ok "Schreibrecht fuer mail2fax ergaenzt"
+  ok "mail2fax neu gestartet - das Asterisk-Verzeichnis ist jetzt beschreibbar"
 fi
 
 # --- Konfiguration erzeugen, sofern schon Zugangsdaten vorliegen -----------

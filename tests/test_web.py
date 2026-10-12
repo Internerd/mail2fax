@@ -399,6 +399,7 @@ def test_sip_apply_needs_credentials(angemeldet):
 def test_sip_apply_writes_configuration(angemeldet, config_file, tmp_path, monkeypatch):
     """Die Schaltflaeche erzeugt die Asterisk-Dateien und erzeugt AMI-Zugangsdaten."""
     ziel = tmp_path / "asterisk"
+    ziel.mkdir()  # legt in echt sip-setup.sh an
     config = load_config(config_file)
     config.fax.sip.config_dir = str(ziel)
     save_config(config, config_file)
@@ -420,15 +421,51 @@ def test_sip_apply_writes_configuration(angemeldet, config_file, tmp_path, monke
     assert load_config(config_file).fax.sip.ami_password != ""
 
 
-def test_sip_apply_reports_write_error(angemeldet, config_file, monkeypatch):
+def test_sip_apply_reports_write_error(angemeldet, config_file, tmp_path):
     config = load_config(config_file)
-    config.fax.sip.config_dir = "/nicht/beschreibbar/asterisk"
+    config.fax.sip.config_dir = str(tmp_path / "fehlt" / "asterisk")
     save_config(config, config_file)
     response = angemeldet.post(
         "/einstellungen/fax/sip-anwenden",
         data=basis_fax_formular(sip_username="620", sip_password="x"),
     )
-    assert "sip-setup.sh" in response.text
+    # Statt "Read-only file system: /etc/asterisk" der konkrete Ausweg.
+    print("ANTWORT", response.text[response.text.find("notice"):response.text.find("notice")+600])
+    assert "noch nicht fuer mail2fax eingerichtet" in response.text
+    assert "Asterisk einrichten" in response.text
+    assert 'href="/system"' in response.text
+    assert "Errno" not in response.text
+
+
+def test_sip_apply_explains_read_only_directory(angemeldet, config_file, tmp_path, monkeypatch):
+    """Der Fehler aus der Praxis: Verzeichnis existiert, ist aber schreibgeschuetzt."""
+    import errno
+
+    ziel = tmp_path / "asterisk"
+    ziel.mkdir()
+    config = load_config(config_file)
+    config.fax.sip.config_dir = str(ziel)
+    save_config(config, config_file)
+
+    def schreibgeschuetzt(*_args, **_kwargs):
+        raise OSError(errno.EROFS, "Read-only file system", str(ziel))
+
+    monkeypatch.setattr("mail2fax.asterisk._write", schreibgeschuetzt)
+    response = angemeldet.post(
+        "/einstellungen/fax/sip-anwenden",
+        data=basis_fax_formular(sip_username="620", sip_password="x"),
+    )
+    assert "schreibgeschuetzt" in response.text
+    assert "systemctl restart mail2fax" in response.text
+
+
+def test_dashboard_warns_when_sip_lacks_asterisk(angemeldet, config_file, tmp_path):
+    config = load_config(config_file)
+    config.fax.backend = "sip"
+    config.fax.sip.config_dir = str(tmp_path / "fehlt" / "asterisk")
+    save_config(config, config_file)
+    response = angemeldet.get("/")
+    assert "Asterisk ist noch nicht fuer" in response.text
 
 
 # -- Zugriffsschutz vor der Ersteinrichtung ---------------------------------

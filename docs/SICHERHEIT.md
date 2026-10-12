@@ -167,11 +167,46 @@ RestrictRealtime, RestrictSUIDSGID, LockPersonality,
 SystemCallFilter=@system-service, CapabilityBoundingSet= (leer), UMask=0027
 ```
 
-Schreibrechte bestehen nur auf `/etc/mail2fax` und `/var/lib/mail2fax`.
+Schreibrechte bestehen nur auf `/etc/mail2fax`, `/var/lib/mail2fax` und – beim
+SIP-Versand – `/etc/asterisk/mail2fax`. Das Programm unter `/opt/mail2fax`
+gehört `root`: Der Dienst kann seinen eigenen Code nicht verändern, und root
+führt beim Update keinen Code aus, den der Dienst hätte manipulieren können.
 Prüfen lässt sich das mit:
 
 ```bash
 systemd-analyze security mail2fax
+```
+
+## 6a. Verwaltungsaktionen aus der Weboberfläche
+
+Update und Asterisk-Einrichtung brauchen root, der Webdienst hat diese Rechte
+bewusst nicht. Die Brücke lässt dem Webdienst nur eine Wahl: *welche* von zwei
+fest eingebauten Aktionen laufen soll.
+
+1. Die Weboberfläche legt eine **leere** Datei an, etwa
+   `/var/lib/mail2fax/control/update.request` (`O_EXCL`, `O_NOFOLLOW`). Ihr
+   Inhalt wird nirgends gelesen – es gibt keine Parameter, die sich
+   einschleusen ließen.
+2. Die systemd-Pfad-Unit `mail2fax-update.path` bzw. `mail2fax-sip-setup.path`
+   startet daraufhin `mail2fax-aktion@<aktion>.service` als root.
+3. Dieser Dienst führt **nur** `/usr/local/lib/mail2fax/<aktion>.sh` aus. Die
+   Skripte gehören root und liegen außerhalb aller Verzeichnisse, auf die der
+   Webdienst schreiben darf.
+4. Status und Protokoll schreibt root nach `/var/lib/mail2fax-admin`
+   (`root:mail2fax`, `0750`). Der Webdienst liest dort nur; einen Symlink kann
+   er root dort nicht unterschieben.
+
+Das Update lädt ausschließlich von dem im Code fest hinterlegten Repository
+(`Internerd/mail2fax`, Zweig `main`) über HTTPS. Wer die Weboberfläche
+bedienen darf, kann also ein Update auslösen – aber nicht bestimmen, *welcher*
+Code installiert wird. Die Aktionen setzen eine Anmeldung voraus; das
+Sitzungs-Cookie ist `SameSite=Strict`, fremde Seiten können sie nicht
+auslösen.
+
+Wer die Funktion nicht möchte, schaltet sie ab:
+
+```bash
+systemctl disable --now mail2fax-update.path mail2fax-sip-setup.path
 ```
 
 ## 7. Empfohlene Ergänzungen

@@ -30,7 +30,7 @@ var_storage=""
 var_ctid=""
 var_start_on_boot="1"
 var_libreoffice="no"
-var_sip="no"
+var_sip="yes"
 
 RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[0;33m'
 BLUE=$'\033[0;34m'; BOLD=$'\033[1m'; RESET=$'\033[0m'
@@ -186,13 +186,6 @@ advanced_settings() {
     "root-Passwort des Containers\n\n(Leer lassen: nur Anmeldung ueber die PVE-Konsole.)" \
     11 60 3>&1 1>&2 2>&3)" || die "Abgebrochen."
 
-  if whiptail --backtitle "${APP}" --title "Faxversand ueber SIP" \
-      --yesno "Faxversand ueber SIP einrichten?\n\nmail2fax meldet sich dann als IP-Telefon an Ihrer FRITZ!Box oder Telefonanlage an und faxt selbst (Asterisk wird mitinstalliert).\n\nBenoetigt rund 200 MiB zusaetzlich." 14 68; then
-    var_sip="yes"
-    var_ram="$(( var_ram < 1024 ? 1024 : var_ram ))"
-    var_disk="$(( var_disk < 6 ? 6 : var_disk ))"
-  fi
-
   if whiptail --backtitle "${APP}" --title "Office-Dokumente" \
       --yesno "LibreOffice mitinstallieren?\n\nErmoeglicht das Faxen von Word-/ODT-Anhaengen, belegt aber rund 500 MiB zusaetzlich." 12 65; then
     var_libreoffice="yes"
@@ -204,6 +197,20 @@ advanced_settings() {
     var_start_on_boot="1"
   else
     var_start_on_boot="0"
+  fi
+}
+
+ask_sip() {
+  # Bewusst in beiden Pfaden (Standard und Erweitert): Ohne Asterisk kann
+  # mail2fax nicht ueber FRITZ!Box oder Telefonanlage faxen - frueher stand
+  # die Frage nur unter "Erweitert" und fehlte bei Standardinstallationen.
+  if whiptail --backtitle "${APP}" --title "Faxversand ueber SIP" \
+      --yesno "Faxversand ueber FRITZ!Box oder Telefonanlage (SIP) einrichten?\n\nmail2fax meldet sich dann als IP-Telefon an und faxt selbst; Asterisk wird mitinstalliert (rund 200 MiB).\n\nEmpfohlen, ausser Sie faxen ausschliesslich ueber einen Fax-per-E-Mail-Dienst. Nachholen geht jederzeit in der Weboberflaeche." 15 70; then
+    var_sip="yes"
+    var_ram="$(( var_ram < 1024 ? 1024 : var_ram ))"
+    var_disk="$(( var_disk < 6 ? 6 : var_disk ))"
+  else
+    var_sip="no"
   fi
 }
 
@@ -351,6 +358,7 @@ main() {
   else
     advanced_settings
   fi
+  ask_sip
 
   var_storage="$(select_storage rootdir 'Speicher fuer den Container')"
   msg_ok "Container-Speicher: ${var_storage}"

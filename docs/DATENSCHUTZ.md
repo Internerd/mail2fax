@@ -21,7 +21,12 @@
 **Nicht verarbeitet werden:** Es findet keine Übermittlung an die Entwickler,
 keine Telemetrie und keine Nutzungsanalyse statt. mail2fax baut ausschließlich
 Verbindungen zu den von Ihnen konfigurierten Systemen auf (IMAP-Server,
-SMTP-Server, Faxgegenstelle).
+SMTP-Server, Faxgegenstelle). Einzige Ausnahme: Klickt ein Administrator unter
+**System** auf „Nach Updates suchen“ oder „Update installieren“, ruft mail2fax
+GitHub (`api.github.com`, `github.com`) auf. Dabei werden wie bei jedem
+Webseitenaufruf die IP-Adresse des Anschlusses und technische Kopfzeilen
+übermittelt, keine Auftrags- oder Konfigurationsdaten. Von sich aus prüft
+mail2fax nicht auf Updates.
 
 ## 2. Rechtsgrundlage
 

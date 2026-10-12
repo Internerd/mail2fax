@@ -14,13 +14,15 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote_plus
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 
-from .. import __version__
+from .. import __version__, admin
 from ..config import (
     AppConfig,
     generate_secret_key,
@@ -446,7 +448,12 @@ def create_app(config_path: Path | None = None, *, start_worker: bool = True) ->
     @app.post("/einstellungen/fax/sip-anwenden", dependencies=[Depends(require_login)])
     async def sip_apply(request: Request) -> Response:
         """Speichert die Einstellungen und erzeugt die Asterisk-Konfiguration."""
-        from ..asterisk import generate_ami_secret, reload_asterisk, write_config
+        from ..asterisk import (
+            explain_write_error,
+            generate_ami_secret,
+            reload_asterisk,
+            write_config,
+        )
 
         await fax_settings_save(request)
         config = current_config()
@@ -466,11 +473,8 @@ def create_app(config_path: Path | None = None, *, start_worker: bool = True) ->
         except OSError as error:
             return render(
                 request, "settings_fax.html", message=None,
-                error=(
-                    f"Die Asterisk-Konfiguration konnte nicht geschrieben werden: {error}. "
-                    f"Existiert {sip.config_dir} und darf mail2fax hineinschreiben? "
-                    "Das richtet install/sip-setup.sh ein."
-                ),
+                error=explain_write_error(Path(sip.config_dir), error),
+                system_link=True,
             )
         try:
             hinweis = reload_asterisk(sip)
@@ -607,6 +611,54 @@ def create_app(config_path: Path | None = None, *, start_worker: bool = True) ->
             }
         )
 
+    # -- System: Version, Update, Asterisk ----------------------------------
+
+    def system_context() -> dict[str, Any]:
+        states = {name: admin.action_state(name) for name in admin.ACTIONS}
+        return {
+            "installed": admin.installed_revision(),
+            "states": states,
+            "helpers": {name: admin.helper_installed(name) for name in admin.ACTIONS},
+            "asterisk": admin.asterisk_installed(),
+            "busy": any(state.busy for state in states.values()),
+            "actions": admin.ACTIONS,
+            "repo": admin.UPDATE_REPO,
+        }
+
+    @app.get("/system", response_class=HTMLResponse, dependencies=[Depends(require_login)])
+    async def system_page(request: Request) -> Response:
+        return render(request, "system.html", latest=None, **system_context())
+
+    @app.post("/system/pruefen", dependencies=[Depends(require_login)])
+    async def system_check(request: Request) -> Response:
+        """Fragt auf ausdruecklichen Wunsch den neuesten Stand bei GitHub ab."""
+        try:
+            latest = await run_in_threadpool(admin.latest_revision)
+        except admin.AdminError as error:
+            return render(request, "system.html", latest=None, error=str(error), **system_context())
+        return render(request, "system.html", latest=latest, **system_context())
+
+    @app.post("/system/aktion/{name}", dependencies=[Depends(require_login)])
+    async def system_action(name: str) -> Response:
+        try:
+            admin.request_action(name)
+        except admin.AdminError as error:
+            return RedirectResponse(f"/system?fehler={quote_plus(str(error))}", status_code=303)
+        storage.log_event(f"Verwaltungsaktion angefordert: {admin.ACTIONS[name]}")
+        LOGGER.info("Verwaltungsaktion angefordert: %s", name)
+        return RedirectResponse(
+            f"/system?hinweis={quote_plus(admin.ACTIONS[name] + ' angefordert')}", status_code=303
+        )
+
+    @app.get("/system/status", dependencies=[Depends(require_login)])
+    async def system_status() -> JSONResponse:
+        return JSONResponse(
+            {
+                name: {"state": state.state, "busy": state.busy}
+                for name, state in ((n, admin.action_state(n, log_lines=0)) for n in admin.ACTIONS)
+            }
+        )
+
     @app.get("/healthz", response_class=PlainTextResponse)
     async def healthz() -> str:
         return "ok"
@@ -628,6 +680,12 @@ def _configuration_warnings(config: AppConfig) -> list[str]:
         warnings.append("Es ist das Testbackend aktiv - es werden keine Faxe versendet.")
     if config.fax.dry_run:
         warnings.append("Der Testbetrieb (dry-run) ist aktiv - es werden keine Faxe versendet.")
+    if config.fax.backend == "sip" and not Path(config.fax.sip.config_dir).is_dir():
+        warnings.append(
+            "Der Versandweg SIP ist gewaehlt, aber Asterisk ist noch nicht fuer "
+            "mail2fax eingerichtet. Unter 'System' laesst sich das mit "
+            "'Asterisk einrichten' nachholen."
+        )
     if not config.imap.verify_tls and config.imap.enabled:
         warnings.append("Die TLS-Zertifikatspruefung fuer IMAP ist abgeschaltet.")
     if config.smtp.enabled and config.smtp.notify_sender and not _backend_confirms(config):

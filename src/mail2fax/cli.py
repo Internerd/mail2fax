@@ -220,7 +220,7 @@ def cmd_show_config(args: argparse.Namespace) -> int:
 
 def cmd_sip_apply(args: argparse.Namespace) -> int:
     """Schreibt die Asterisk-Konfiguration aus den SIP-Einstellungen."""
-    from .asterisk import generate_ami_secret, reload_asterisk, write_config
+    from .asterisk import explain_write_error, generate_ami_secret, reload_asterisk, write_config
 
     path = _config_path(args)
     config = load_config(path)
@@ -243,12 +243,7 @@ def cmd_sip_apply(args: argparse.Namespace) -> int:
     try:
         written = write_config(sip)
     except OSError as error:
-        print(
-            f"Fehler: Konfiguration konnte nicht geschrieben werden: {error}\n"
-            f"Existiert {sip.config_dir} und ist es beschreibbar? "
-            "Die Einrichtung erledigt install/sip-setup.sh.",
-            file=sys.stderr,
-        )
+        print(f"Fehler: {explain_write_error(Path(sip.config_dir), error)}", file=sys.stderr)
         return 1
 
     for datei in written:

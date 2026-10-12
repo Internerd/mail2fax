@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}mail2fax{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css">
+  {% block head %}{% endblock %}
 </head>
 <body>
 <header class="top">
@@ -20,6 +21,7 @@
   <a href="/einstellungen/fax" class="{{ 'active' if active == 'fax' }}">Fax</a>
   <a href="/einstellungen/sicherheit" class="{{ 'active' if active == 'security' }}">Sicherheit</a>
   <a href="/protokoll" class="{{ 'active' if active == 'events' }}">Protokoll</a>
+  <a href="/system" class="{{ 'active' if active == 'system' }}">System</a>
 </nav>
 {% endif %}
 <main>
@@ -30,7 +32,7 @@
     <div class="notice err">{{ request.query_params.get('fehler') }}</div>
   {% endif %}
   {% if message %}<div class="notice ok">{{ message }}</div>{% endif %}
-  {% if error %}<div class="notice err">{{ error }}</div>{% endif %}
+  {% if error %}<div class="notice err">{{ error }}{% if system_link %} <a href="/system">Zur Seite „System“</a>{% endif %}</div>{% endif %}
   {% block content %}{% endblock %}
 </main>
 <footer>

@@ -8,6 +8,7 @@ skript einmalig als root.
 
 from __future__ import annotations
 
+import errno
 import logging
 import os
 import secrets
@@ -191,9 +192,39 @@ def generate_ami_secret() -> str:
     return secrets.token_urlsafe(30)
 
 
+class AsteriskSetupError(OSError):
+    """Das Asterisk-Verzeichnis von mail2fax fehlt oder ist nicht beschreibbar.
+
+    Die Meldung ist fuer Menschen geschrieben und nennt den Ausweg.
+    """
+
+    def __str__(self) -> str:
+        return str(self.strerror)
+
+
+def explain_write_error(directory: Path, error: OSError) -> str:
+    """Uebersetzt einen Schreibfehler in eine Meldung mit Loesungsweg."""
+    if isinstance(error, AsteriskSetupError):
+        return str(error)
+    if error.errno == errno.EROFS:
+        return (
+            f"{directory} ist fuer mail2fax schreibgeschuetzt. Das Verzeichnis wurde "
+            "vermutlich erst nach dem Start von mail2fax angelegt; systemd gibt es "
+            "dem Dienst erst nach einem Neustart frei. Bitte unter 'System' "
+            "'Asterisk einrichten' ausfuehren oder im Container "
+            "'systemctl restart mail2fax' aufrufen."
+        )
+    if error.errno in (errno.EACCES, errno.EPERM):
+        return (
+            f"mail2fax darf nicht in {directory} schreiben ({error.strerror}). "
+            "Bitte unter 'System' 'Asterisk einrichten' erneut ausfuehren - das "
+            "setzt die Rechte richtig."
+        )
+    return f"Die Asterisk-Konfiguration konnte nicht geschrieben werden: {error}"
+
+
 def _write(path: Path, content: str, *, mode: int = 0o640) -> None:
     """Schreibt eine Datei atomar mit restriktiven Rechten."""
-    path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}-")
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
@@ -208,6 +239,17 @@ def _write(path: Path, content: str, *, mode: int = 0o640) -> None:
 def write_config(sip: SipConfig, directory: Path | None = None) -> list[Path]:
     """Schreibt alle Asterisk-Dateien und liefert deren Pfade."""
     target = Path(directory) if directory else Path(sip.config_dir)
+    # Bewusst kein mkdir: Das Verzeichnis legt die Asterisk-Einrichtung mit
+    # den passenden Rechten an. Fehlt es, ist Asterisk nicht eingerichtet -
+    # das soll die Meldung sagen, statt "Read-only file system: /etc/asterisk".
+    if not target.is_dir():
+        raise AsteriskSetupError(
+            errno.ENOENT,
+            f"Das Verzeichnis {target} fehlt - Asterisk ist in diesem Container "
+            "noch nicht fuer mail2fax eingerichtet. Bitte unter 'System' "
+            "'Asterisk einrichten' ausfuehren (oder im Container "
+            "install/sip-setup.sh starten) und danach erneut anwenden.",
+        )
     files = {
         "pjsip.conf": render_pjsip(sip),
         "extensions.conf": render_extensions(sip),

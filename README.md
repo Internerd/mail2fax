@@ -42,7 +42,7 @@ ausschließlich aus dem lokalen Netz erreichbar ist.
 | Zielrufnummer | aus dem Betreff, z. B. `+49301234567` – mehrdeutige Betreffzeilen werden abgelehnt statt geraten |
 | Zugangsschutz | Absender-Whitelist (Pflicht), Rufnummernsperren, Mengenbegrenzung |
 | Versandwege | SIP (FRITZ!Box/TK-Anlage), HylaFAX, Fax-per-E-Mail-Gateway, beliebiges Kommando |
-| Weboberfläche | Konfiguration, Auftragsübersicht, Protokoll, Tests – nur im lokalen Netz |
+| Weboberfläche | Konfiguration, Auftragsübersicht, Protokoll, Tests, Update und Asterisk-Einrichtung per Knopfdruck – nur im lokalen Netz, mit Passwort |
 | Berichte | Sendebericht mit Quittung der Gegenstelle, Fehlerbericht – nur an Absender der Whitelist |
 | Betrieb | systemd-Dienst, Wiederholversuche, Auftragshistorie mit Löschfrist |
 
@@ -210,7 +210,8 @@ journalctl -u mail2fax -f          # Protokoll mitlesen
 | SIP-Zustand anzeigen | `mail2fax sip-status` |
 | Konfiguration anzeigen | `mail2fax show-config` (ohne Passwörter) |
 
-Aktualisieren:
+Aktualisieren: in der Weboberfläche unter **System → Update installieren**
+oder im Container:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Internerd/mail2fax/main/install/update.sh)"

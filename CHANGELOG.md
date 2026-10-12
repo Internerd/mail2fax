@@ -5,6 +5,43 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unveröffentlicht]
 
+### Neu – Update und Asterisk-Einrichtung aus der Weboberfläche
+
+- Neue Seite **System**: zeigt den installierten Stand, sucht auf Knopfdruck
+  nach Updates und installiert sie. **Asterisk einrichten** holt den
+  SIP-Versand nach, ohne Shell im Container.
+- Der Webdienst bleibt ohne Root-Rechte: Er legt nur eine leere
+  Anforderungsdatei an, eine systemd-Pfad-Unit startet daraufhin ein
+  root-eigenes Skript aus `/usr/local/lib/mail2fax`. Details in
+  `docs/SICHERHEIT.md`, Abschnitt 6a.
+- Bestehende Installationen brauchen dafür **einmalig** ein Update von Hand
+  (`install/update.sh`); die Seite **System** weist darauf hin.
+
+### Behoben – SIP-Einrichtung
+
+- „Read-only file system: '/etc/asterisk'“ beim Anwenden der
+  SIP-Einstellungen. Ursachen:
+  - Bei der Installation mit Standardeinstellungen wurde nach Asterisk gar
+    nicht gefragt – die Frage stand nur im Dialog „Erweitert“. Jetzt kommt
+    sie in beiden Fällen (Vorgabe „Ja“).
+  - `sip-setup.sh` startete mail2fax nicht neu. systemd gibt dem Dienst
+    `/etc/asterisk/mail2fax` aber erst frei, wenn das Verzeichnis beim Start
+    schon existiert. Jetzt wird immer neu gestartet.
+  - Die Fehlermeldung nennt jetzt die Ursache (Asterisk nicht eingerichtet
+    bzw. Neustart nötig) und den Ausweg; die Übersicht warnt, wenn SIP
+    gewählt, Asterisk aber nicht eingerichtet ist.
+- `update.sh` setzte die Gruppe des Spool-Verzeichnisses zurück; danach
+  konnte Asterisk die Faxdateien nicht mehr lesen.
+
+### Sicherheit
+
+- Das Programmverzeichnis `/opt/mail2fax` gehört jetzt `root` statt dem
+  Dienstbenutzer. Vorher hätte ein kompromittierter Dienst Code ablegen
+  können, den root beim nächsten Update ausführt. `update.sh` baut eine
+  Python-Umgebung, die noch dem Dienstbenutzer gehört, neu auf.
+- Installiert wird ein fester Commit (per GitHub-API ermittelt) statt des
+  beweglichen Zweigs; er wird in `/opt/mail2fax/REVISION` vermerkt.
+
 ### Behoben – Installation
 
 - Beim Aufruf über `bash -c "$(curl …)"` brach `install.sh` mit

@@ -1,0 +1,10 @@
+# Startet die Update von mail2fax, sobald die Weboberflaeche sie anfordert.
+[Unit]
+Description=mail2fax: Update auf Anforderung der Weboberflaeche
+
+[Path]
+PathExists=/var/lib/mail2fax/control/update.request
+Unit=mail2fax-aktion@update.service
+
+[Install]
+WantedBy=multi-user.target

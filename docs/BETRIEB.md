@@ -43,11 +43,37 @@ echo 'alias mail2fax=/opt/mail2fax/venv/bin/mail2fax' >> /root/.bashrc
 | `/etc/mail2fax/config.yaml` | Konfiguration samt Zugangsdaten | `0640 mail2fax:mail2fax` |
 | `/var/lib/mail2fax/mail2fax.db` | Auftragsdatenbank (SQLite) | `0640` |
 | `/var/lib/mail2fax/spool/` | Faxdateien während der Verarbeitung | `0750` |
-| `/opt/mail2fax/venv/` | Python-Umgebung | |
+| `/opt/mail2fax/` | Programm, Python-Umgebung, `REVISION` (installierter Stand) | `root:root` – der Dienst kann seinen Code nicht ändern |
 | `/opt/mail2fax/doc/` | mitgelieferte Dokumentation | |
+| `/usr/local/lib/mail2fax/` | Root-Skripte für Update und Asterisk-Einrichtung | `0755 root:root` |
+| `/var/lib/mail2fax/control/` | Anforderungen der Weboberfläche (leere Dateien) | `0750 mail2fax` |
+| `/var/lib/mail2fax-admin/` | Status und Protokoll der Verwaltungsaktionen | `0750 root:mail2fax` |
 | `/etc/asterisk/mail2fax/` | erzeugte Asterisk-Konfiguration (nur bei SIP) | `2750 mail2fax:asterisk` |
 
 ## Aktualisieren
+
+### Aus der Weboberfläche
+
+Unter **System**:
+
+1. **Nach Updates suchen** – fragt den neuesten Stand auf GitHub ab und
+   vergleicht ihn mit dem installierten. Die Abfrage geschieht nur auf
+   Knopfdruck.
+2. **Update installieren** – startet das Update. Die Seite zeigt Fortschritt
+   und Protokoll und aktualisiert sich selbst. mail2fax wird dabei neu
+   gestartet; danach ist eine erneute Anmeldung nötig.
+
+Auf derselben Seite richtet **Asterisk einrichten** den SIP-Versand ein (siehe
+[FAX-BACKENDS.md](FAX-BACKENDS.md#1-asterisk-installieren)).
+
+Wie das ohne Root-Rechte des Webdienstes funktioniert, beschreibt
+[SICHERHEIT.md](SICHERHEIT.md#6a-verwaltungsaktionen-aus-der-weboberfläche).
+
+> **Installationen von vor dieser Funktion** brauchen einmalig ein Update von
+> Hand (siehe unten). Erst dieses richtet die Root-Skripte und systemd-Units
+> ein; die Seite **System** weist darauf hin, solange sie fehlen.
+
+### Im Container
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Internerd/mail2fax/main/install/update.sh)"
@@ -55,7 +81,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Internerd/mail2fax/main/
 
 Das Skript legt zuvor selbsttätig eine Sicherung unter `/var/backups/` an,
 stoppt den Dienst, aktualisiert die Pakete und startet wieder. Konfiguration
-und Historie bleiben erhalten.
+und Historie bleiben erhalten. Gehörte die Python-Umgebung noch dem
+Dienstbenutzer (ältere Installationen), wird sie neu aufgebaut.
 
 Vom Proxmox-Host aus:
 
@@ -211,11 +238,28 @@ systemctl status asterisk
 journalctl -u asterisk -n 50
 ```
 
+Meldet die Weboberfläche beim Anwenden, dass `/etc/asterisk/mail2fax` fehlt
+oder schreibgeschützt ist, unter **System** auf **Asterisk einrichten**
+klicken.
+
 Häufigste Ursachen: die Registrierung steht nicht (`Rejected` = falsche
 Zugangsdaten, `Unregistered` = Anlage nicht erreichbar) oder
 `mail2fax sip-apply` wurde nach einer Änderung nicht ausgeführt. Die
 vollständige Fehlertabelle steht in
 [FAX-BACKENDS.md](FAX-BACKENDS.md#7-fehlersuche).
+
+### Update oder Asterisk-Einrichtung startet nicht
+
+Bleibt eine Aktion unter **System** auf „angefordert“ stehen, läuft die
+zugehörige Pfad-Unit nicht:
+
+```bash
+systemctl status mail2fax-update.path mail2fax-sip-setup.path
+systemctl enable --now mail2fax-update.path mail2fax-sip-setup.path
+journalctl -u 'mail2fax-aktion@*' -n 50
+```
+
+Fehlen die Units ganz, einmalig `install/update.sh` von Hand ausführen.
 
 ### Der Absender bekommt keinen Bericht
 

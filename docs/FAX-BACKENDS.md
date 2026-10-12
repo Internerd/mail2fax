@@ -40,7 +40,8 @@ E-Mail  ──▶  mail2fax  ──▶  PDF→TIFF  ──▶  Asterisk (spandsp
 
 ### 1. Asterisk installieren
 
-Im Container:
+Am einfachsten in der Weboberfläche unter **System → Asterisk einrichten**.
+Oder im Container:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Internerd/mail2fax/main/install/sip-setup.sh)"
@@ -50,8 +51,12 @@ Das Skript installiert Asterisk und Ghostscript, schaltet das veraltete
 `chan_sip` ab (es belegt sonst Port 5060), bindet das Konfigurations-
 verzeichnis von mail2fax ein und aktiviert die lokale AMI-Schnittstelle.
 
-Bei der Installation über `mail2fax.sh` auf dem Proxmox-Host können Sie das
-im Dialog „Erweitert“ direkt mitauswählen.
+Bei der Installation über `mail2fax.sh` auf dem Proxmox-Host fragt das Skript
+danach – bei Standard- wie bei eigenen Einstellungen.
+
+Das Skript startet mail2fax am Ende neu. Das ist nötig: systemd gibt dem
+Dienst `/etc/asterisk/mail2fax` erst frei, wenn das Verzeichnis beim Start
+bereits existiert. Ein erneuter Aufruf ist unschädlich und repariert Rechte.
 
 ### 2. IP-Telefon in der Anlage anlegen
 
@@ -144,6 +149,8 @@ journalctl -u asterisk -f
 |---|---|
 | `Registrierung an …: Rejected` | Benutzername oder Passwort stimmen nicht. In der FRITZ!Box unter *Telefoniegeräte* das IP-Telefon bearbeiten und die Zugangsdaten neu setzen. |
 | `Registrierung an …: Unregistered` | Die Anlage ist nicht erreichbar. Adresse prüfen, aus dem Container testen: `ping fritz.box`. |
+| `Das Verzeichnis /etc/asterisk/mail2fax fehlt` | Asterisk ist nicht eingerichtet. **System → Asterisk einrichten** (oder `install/sip-setup.sh`). |
+| `… ist für mail2fax schreibgeschützt` bzw. `Read-only file system` | Das Verzeichnis wurde nach dem Start von mail2fax angelegt. `systemctl restart mail2fax` oder **System → Asterisk einrichten**. |
 | `Registrierung …: nicht gefunden` | `mail2fax sip-apply` wurde noch nicht ausgeführt. |
 | `Asterisk ist nicht erreichbar` | `systemctl status asterisk`; AMI aktiviert? (`install/sip-setup.sh` erledigt das) |
 | `Anruf kam nicht zustande: Besetzt` | Die Zielnummer ist belegt – mail2fax wiederholt den Versuch automatisch. |

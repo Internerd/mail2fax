@@ -26,10 +26,13 @@ Der Ablauf:
 1. Rückfrage, ob die **Standardeinstellungen** genügen (2 Kerne, 1 GiB RAM,
    4 GiB Platte, DHCP, unprivilegiert) oder ob Sie alles selbst festlegen
    möchten.
-2. Auswahl des **Speicherorts** für Container und Vorlage.
-3. Die **Debian-Vorlage** wird geladen, falls sie noch fehlt.
-4. Der Container wird angelegt, gestartet und mail2fax darin installiert.
-5. Am Ende erscheinen **IP-Adresse, Adresse der Weboberfläche und das
+2. Rückfrage, ob **Asterisk für den SIP-Versand** (FRITZ!Box/Telefonanlage)
+   gleich mit eingerichtet werden soll – Vorgabe „Ja“. Nachholen lässt sich
+   das jederzeit in der Weboberfläche unter **System**.
+3. Auswahl des **Speicherorts** für Container und Vorlage.
+4. Die **Debian-Vorlage** wird geladen, falls sie noch fehlt.
+5. Der Container wird angelegt, gestartet und mail2fax darin installiert.
+6. Am Ende erscheinen **IP-Adresse, Adresse der Weboberfläche und das
    Erstpasswort**.
 
 > Notieren Sie das Erstpasswort. Es wird nur einmal angezeigt. Vergessen ist

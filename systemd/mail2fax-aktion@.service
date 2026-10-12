@@ -1,0 +1,30 @@
+# Fuehrt eine Verwaltungsaktion von mail2fax als root aus.
+#
+# Gestartet wird dieser Dienst ausschliesslich ueber die Pfad-Units
+# mail2fax-update.path und mail2fax-sip-setup.path, sobald die Weboberflaeche
+# eine Anforderungsdatei anlegt. Ausgefuehrt wird immer ein root-eigenes
+# Skript aus /usr/local/lib/mail2fax - nie Code, den der Webdienst aendern
+# koennte. Siehe src/mail2fax/admin.py.
+
+[Unit]
+Description=mail2fax: Verwaltungsaktion %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Anforderung zuerst entfernen - sonst loeste die Pfad-Unit erneut aus.
+# rm entfernt bei einem Symlink nur den Link selbst.
+ExecStartPre=/bin/rm -f /var/lib/mail2fax/control/%i.request
+ExecStartPre=/bin/sh -c ': > /var/lib/mail2fax-admin/%i.log; echo "running $(date +%%s)" > /var/lib/mail2fax-admin/%i.status'
+ExecStart=/usr/local/lib/mail2fax/%i.sh
+ExecStopPost=/bin/sh -c 'echo "$SERVICE_RESULT $(date +%%s) $EXIT_STATUS" > /var/lib/mail2fax-admin/%i.status'
+# Protokoll und Status liegen in einem root-eigenen Verzeichnis
+# (root:mail2fax, 0750), das der Webdienst lesen, aber nicht veraendern kann.
+# Es wird von install.sh/update.sh angelegt. "append" statt "truncate", weil
+# systemd die Datei fuer jeden Exec-Schritt neu oeffnet - geleert wird sie
+# oben einmal zu Beginn.
+StandardOutput=append:/var/lib/mail2fax-admin/%i.log
+StandardError=inherit
+Environment=TERM=dumb
+TimeoutStartSec=30min

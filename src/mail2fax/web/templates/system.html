@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% set active = 'system' %}
+{% block title %}System – mail2fax{% endblock %}
+{% block head %}
+{% if busy %}
+<script src="/static/system.js" defer></script>
+<noscript><meta http-equiv="refresh" content="10"></noscript>
+{% endif %}
+{% endblock %}
+{% block content %}
+<h1>System</h1>
+
+{% set bereit = helpers.values() | select | list | length == helpers | length %}
+{% if not bereit %}
+<div class="notice warn">
+  Diese Installation kann Update und Asterisk-Einrichtung noch nicht aus der
+  Weboberfläche starten. Einmalig im Container als root ausführen:
+  <pre>bash -c "$(curl -fsSL https://raw.githubusercontent.com/{{ repo }}/main/install/update.sh)"</pre>
+  Danach stehen die Schaltflächen auf dieser Seite zur Verfügung.
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Version</h2>
+  <table>
+    <tr><th>Programmversion</th><td>{{ version }}</td></tr>
+    <tr><th>Installierter Stand</th><td>
+      {% if installed and installed.sha != 'unbekannt' %}
+        <code>{{ installed.short }}</code>{% if installed.date %} vom {{ installed.date }}{% endif %}
+      {% else %}unbekannt (vor dieser Funktion installiert){% endif %}
+    </td></tr>
+    {% if latest %}
+    <tr><th>Neuester Stand auf GitHub</th><td>
+      <code>{{ latest.short }}</code>{% if latest.date %} vom {{ latest.date }}{% endif %}
+      {% if latest.message %}<br><span class="hint">{{ latest.message }}</span>{% endif %}
+    </td></tr>
+    {% endif %}
+  </table>
+  {% if latest %}
+    {% if installed and installed.sha == latest.sha %}
+      <div class="notice ok">mail2fax ist auf dem neuesten Stand.</div>
+    {% else %}
+      <div class="notice warn">Es ist ein neuerer Stand verfügbar.</div>
+    {% endif %}
+  {% endif %}
+  <p class="hint">
+    Die Abfrage bei GitHub ({{ repo }}) erfolgt nur, wenn Sie auf „Nach Updates suchen“
+    klicken. Von sich aus nimmt mail2fax keinen Kontakt nach außen auf.
+  </p>
+  <div class="actions">
+    <form method="post" action="/system/pruefen">
+      <button type="submit" class="secondary">Nach Updates suchen</button>
+    </form>
+    {% if helpers['update'] %}
+    <form method="post" action="/system/aktion/update">
+      <button type="submit" {{ 'disabled' if busy }}>Update installieren</button>
+    </form>
+    {% endif %}
+  </div>
+  <p class="hint">
+    Das Update lädt den aktuellen Stand von GitHub, legt vorher eine Sicherung von
+    Konfiguration und Auftragsdaten unter <code>/var/backups</code> an und startet
+    mail2fax neu. Während des Neustarts ist die Oberfläche kurz nicht erreichbar;
+    danach ist eine erneute Anmeldung nötig.
+  </p>
+</div>
+
+<div class="card">
+  <h2>Asterisk (SIP-Versand)</h2>
+  {% if asterisk %}
+    <p>Asterisk ist installiert.</p>
+  {% else %}
+    <p>Asterisk ist in diesem Container nicht installiert. Für den Versandweg
+      „SIP“ wird es benötigt.</p>
+  {% endif %}
+  <p class="hint">
+    „Asterisk einrichten“ installiert Asterisk mit Faxmodul (falls nötig), legt
+    <code>/etc/asterisk/mail2fax</code> mit den passenden Rechten an, startet mail2fax
+    neu und erzeugt die Konfiguration aus bereits eingetragenen SIP-Zugangsdaten.
+    Ein erneuter Aufruf ist unschädlich und repariert fehlende Rechte.
+  </p>
+  {% if helpers['sip-setup'] %}
+  <form method="post" action="/system/aktion/sip-setup" class="actions">
+    <button type="submit" {{ 'disabled' if busy }}>Asterisk einrichten</button>
+  </form>
+  {% endif %}
+</div>
+
+{% for name, state in states.items() %}
+{% if state.state != 'idle' or state.log %}
+<div class="card">
+  <h2>{{ actions[name] }}</h2>
+  <p>
+    {% if state.state == 'pending' %}<span class="badge queued">angefordert</span> startet in wenigen Sekunden …
+    {% elif state.state == 'running' %}<span class="badge sending">läuft</span> seit {{ state.since | ts }} – diese Seite aktualisiert sich selbst.
+    {% elif state.state == 'success' %}<span class="badge sent">erfolgreich</span> abgeschlossen {{ state.since | ts }}
+    {% elif state.state == 'failed' %}<span class="badge failed">fehlgeschlagen</span> {{ state.since | ts }} ({{ state.detail }})
+    {% elif state.state == 'stale' %}<span class="badge failed">abgebrochen?</span> {{ state.detail }}
+    {% endif %}
+  </p>
+  {% if state.log %}<pre class="log">{{ state.log }}</pre>{% endif %}
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

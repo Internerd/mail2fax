@@ -1,0 +1,10 @@
+# Startet die Asterisk-Einrichtung von mail2fax, sobald die Weboberflaeche sie anfordert.
+[Unit]
+Description=mail2fax: Asterisk-Einrichtung auf Anforderung der Weboberflaeche
+
+[Path]
+PathExists=/var/lib/mail2fax/control/sip-setup.request
+Unit=mail2fax-aktion@sip-setup.service
+
+[Install]
+WantedBy=multi-user.target
